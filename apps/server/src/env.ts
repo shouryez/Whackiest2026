@@ -21,7 +21,18 @@ const EnvSchema = z.object({
   ELEVENLABS_WEBHOOK_SECRET: z.string().optional(),
   ELEVENLABS_API_BASE: z.string().default("https://api.elevenlabs.io"),
 
+  ELEVENLABS_BRIEFING_AGENT_ID: z.string().optional(),
+
+  /** LLM for the post-call insight pass, starters and scam layer 2. "none" = deterministic rules only. */
+  LLM_PROVIDER: z.enum(["none", "anthropic", "bedrock", "openai"]).default("none"),
+  LLM_MODEL: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+
+  /** Local scheduler (setTimeout/interval) for daily calls, reminders, callbacks, retries. Off in demo by default. */
+  ENABLE_DAILY_CALLS: bool.default("false"),
+
   TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_WEBHOOK_SECRET: z.string().default("dev-telegram-secret"),
   /** Phase 0 shortcut: chat id that receives the primary child's alerts until /start linking exists (Phase 2). */
   TELEGRAM_DEMO_CHAT_ID: z.string().optional(),
 

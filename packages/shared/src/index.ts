@@ -131,6 +131,17 @@ export interface CheckIn {
   updatedAt: string;
 }
 
+export type CallReason = "daily" | "consent" | "reminder" | "callback" | "followup" | "checkin" | "message" | "briefing";
+
+export interface CallSummary {
+  family_en: string;
+  family_native: string;
+  highlights: string[];
+  flags: { type: string; severity: "watch" | "urgent"; evidence: string }[];
+  mood?: number;
+  source: "llm" | "rules";
+}
+
 export interface Call {
   elderId: string;
   callId: string;
@@ -138,9 +149,66 @@ export interface Call {
   status: "scheduled" | "ringing" | "in_progress" | "completed" | "no_answer" | "failed";
   attempt: number;
   conversationId?: string;
+  callSid?: string;
   startedAt?: string;
   endedAt?: string;
+  durationSec?: number;
   familyMessagesSent: number;
+  /** "live" = placed through ElevenLabs; "simulated" = no keys configured (dev/demo). */
+  mode?: "live" | "simulated" | "browser";
+  summary?: CallSummary;
+  qualityChecks?: Record<string, boolean>;
+}
+
+export interface Turn {
+  callId: string;
+  elderId: string;
+  idx: number;
+  role: "agent" | "elder";
+  text: string; // always redacted
+  purgeAt: string;
+}
+
+export interface Consent {
+  elderId: string;
+  consentId: string;
+  callId: string;
+  dailyCalls: boolean;
+  preferredTime?: string;
+  shareMedicines: boolean;
+  shareWellbeing: boolean;
+  shareMemories: boolean;
+  notes?: string;
+  recordedAt: string;
+}
+
+export interface Reminder {
+  elderId: string;
+  reminderId: string;
+  kind: "reminder" | "callback";
+  text: string;
+  whenUtc: string;
+  status: "scheduled" | "done" | "cancelled";
+  createdAt: string;
+}
+
+export interface FamilyCall {
+  familyId: string;
+  elderId: string;
+  id: string;
+  by: string; // member name
+  source: "button" | "elder_mentioned";
+  at: string;
+}
+
+export interface Nudge {
+  elderId: string;
+  nudgeId: string;
+  text: string; // "Amma sounded low 3 days in a row. Call her tonight?"
+  reason: string;
+  starters: { starter: string; why: string }[];
+  createdAt: string;
+  status: "open" | "done";
 }
 
 export interface Memory {
@@ -200,7 +268,8 @@ export type LiveEventType =
   | "call.scheduled" | "call.ringing" | "call.in_progress" | "call.ended"
   | "tool.called" | "tool.rejected"
   | "alert.created" | "alert.notified" | "alert.acked"
-  | "summary.ready" | "digest.ready" | "briefing.calling" | "demo.reset";
+  | "summary.ready" | "digest.ready" | "briefing.calling" | "demo.reset"
+  | "nudge.created" | "family_call.logged" | "schedule.updated" | "message.queued";
 
 export interface LiveEvent {
   id: number;

@@ -39,7 +39,12 @@ export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<vo
   ];
   for (const m of meds) await repo.putMedication(m);
 
-  // 14 days of seeded history: mood dips Wed–Fri last week, knee pain easing.
+  // 14 days of seeded history: mood dips mid-way (3 low days), knee pain easing.
+  const NOTES: Record<number, string> = {
+    2: "She went to the temple with Kamala aunty.", 6: "She said the house feels quiet.", 7: "She said she misses Ravi.",
+    8: "She didn't feel like cooking.", 9: "She was quieter than usual.", 10: "Ravi called her last night; she was happy.",
+    11: "Kamala aunty's cataract surgery is on Friday.", 12: "She climbed the temple stairs; knee hurt after.",
+  };
   const today = localDate(elder.tz);
   const moods = [4, 4, 5, 4, 4, 4, 3, 2, 2, 2, 3, 4, 4, 4];
   const pains = [6, 6, 6, 5, 5, 5, 5, 5, 4, 4, 4, 3, 3, 3];
@@ -47,7 +52,16 @@ export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<vo
     const date = addDays(today, -i);
     const idx = 14 - i;
     const callId = `call_${date.replace(/-/g, "")}_0900`;
-    await repo.putCall({ elderId: elder.elderId, callId, reason: "daily", status: "completed", attempt: 1, startedAt: `${date}T03:30:00Z`, endedAt: `${date}T03:33:00Z`, familyMessagesSent: 0 });
+    const missedNight = idx === 8 || idx === 3;
+    const m = moods[idx];
+    const summary = {
+      family_en: `Amma sounded ${["", "very low", "low", "okay", "good", "very good"][m]} (mood ${m}/5) and slept ${m <= 2 ? "poorly" : "well"}. She took Metformin in the morning${missedNight ? " but missed the night dose" : " and at night"}. Knee pain ${pains[idx]}/10.${NOTES[idx] ? " " + NOTES[idx] : ""}`,
+      family_native: `ಅಮ್ಮ ಇಂದು ${m >= 4 ? "ಚೆನ್ನಾಗಿದ್ದರು" : m === 3 ? "ಸಾಧಾರಣವಾಗಿದ್ದರು" : "ಸ್ವಲ್ಪ ಬೇಸರದಲ್ಲಿದ್ದರು"}. ಮೆಟ್‌ಫಾರ್ಮಿನ್ ✓. ಮೊಣಕಾಲು ನೋವು ${pains[idx]}/10.`,
+      highlights: [missedNight ? "Missed Metformin (night)" : "All medicines taken ✓", `Knee ${pains[idx]}/10`, ...(NOTES[idx] ? [NOTES[idx]] : [])],
+      flags: m <= 2 ? [{ type: "low_mood", severity: "watch" as const, evidence: `mood ${m}/5` }] : [],
+      mood: m, source: "rules" as const,
+    };
+    await repo.putCall({ elderId: elder.elderId, callId, reason: "daily", status: "completed", attempt: 1, startedAt: `${date}T03:30:00Z`, endedAt: `${date}T03:32:40Z`, durationSec: 160, familyMessagesSent: 0, mode: "live", summary, qualityChecks: { disclosed_ai: true, no_medical_advice: true, no_sensitive_numbers: true, asked_all_meds: true } });
     await repo.putCheckIn({ elderId: elder.elderId, callId, date, mood: moods[idx], sleep: moods[idx] <= 2 ? "poor" : "good", pain: { where: "knee", level: pains[idx] }, updatedAt: `${date}T03:33:00Z` });
     for (const slot of ["morning", "night"] as const) {
       const missed = (idx === 8 && slot === "night") || (idx === 3 && slot === "night");
@@ -58,6 +72,10 @@ export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<vo
   await repo.putMemory({ elderId: elder.elderId, memoryId: "mem_knee", type: "health", text: "Knee pain after climbing the temple stairs", importance: 4, private: false, followUpAfter: today, followUpDone: false, source: "tool", lastMentionedAt: `${addDays(today, -3)}T03:31:00Z`, createdAt: `${addDays(today, -3)}T03:31:00Z` });
   await repo.putMemory({ elderId: elder.elderId, memoryId: "mem_kamala_surgery", type: "event", text: "Kamala aunty's cataract surgery on Friday", importance: 3, private: false, followUpAfter: today, followUpDone: false, source: "postcall", lastMentionedAt: `${addDays(today, -2)}T03:31:00Z`, createdAt: `${addDays(today, -2)}T03:31:00Z` });
   await repo.putMemory({ elderId: elder.elderId, memoryId: "mem_private_savings", type: "preference", text: "(private) something about her savings", importance: 2, private: true, source: "tool", lastMentionedAt: createdAt, createdAt });
+
+  // Family calls: 1 in the 7 days before, 3 in the last 7 days (the demo's "I called her" makes it 4).
+  const fcAt = (daysAgo: number, by: string, source: "button" | "elder_mentioned") => ({ familyId: DEMO.familyId, elderId: elder.elderId, id: `fc_seed_${daysAgo}_${by}`, by, source, at: `${addDays(today, -daysAgo)}T14:30:00Z` });
+  for (const f of [fcAt(10, "Ravi", "button"), fcAt(4, "Ravi", "elder_mentioned"), fcAt(3, "Priya", "button"), fcAt(1, "Ravi", "button")]) await repo.putFamilyCall(f);
 
   await repo.putMessage({ elderId: elder.elderId, messageId: "msg_ravi_sunday", direction: "to_elder", fromName: "Ravi", text: "I'll visit on Sunday", delivered: false, createdAt });
 

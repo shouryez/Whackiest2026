@@ -4,6 +4,7 @@ import type { ToolSpec } from "../../../control/tiers";
 import { redactPII } from "../../../control/redact";
 import { addDays, localDate, newId, nowIso } from "../../../engine/ids";
 import { getRepo } from "../../../repo";
+import { markInProgress } from "../../../engine/calls";
 import { createAlert } from "../alerts";
 import { adviceFor } from "../scam/advice";
 import { scoreScamRules } from "../scam/rules";
@@ -24,13 +25,8 @@ const elder_id = z.string().describe("The elder_id from your instructions. Never
 const call_id = z.string().describe("The call_id from your instructions.");
 
 async function ensureCall(elderId: string, callId: string) {
-  const repo = getRepo();
-  const existing = await repo.getCall(elderId, callId);
-  if (existing) return existing;
-  // Browser test calls / calls started outside the engine: register them on first tool use.
-  const call = { elderId, callId, reason: "daily", status: "in_progress" as const, attempt: 1, startedAt: nowIso(), familyMessagesSent: 0 };
-  await repo.putCall(call);
-  return call;
+  const elder = await getRepo().getElder(elderId);
+  return markInProgress(elderId, callId, elder?.familyId ?? "unknown");
 }
 
 // ---------------- log_medication (T1) ----------------
@@ -234,4 +230,5 @@ export const send_family_message: AgentTool<typeof sendFamilyMessageShape> = {
   },
 };
 
-export const AGENT_TOOLS = { log_medication, log_wellbeing, save_memory, check_scam, send_family_message };
+export { ensureCall };
+export const PHASE0_TOOLS = { log_medication, log_wellbeing, save_memory, check_scam, send_family_message };

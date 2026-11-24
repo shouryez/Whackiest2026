@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { runTool } from "../control/tiers";
-import { AGENT_TOOLS } from "../packs/kaiseho/tools/agentTools";
+import { AGENT_TOOLS } from "../packs/kaiseho/tools";
 
 /**
  * /mcp/agent — the voice agent's door (elder-scoped tools). Stateless Streamable HTTP:

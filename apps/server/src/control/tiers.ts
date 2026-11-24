@@ -86,7 +86,9 @@ export async function runTool<A extends Record<string, unknown>>(
     enforceTier(spec.name, spec.tier, args, elder);
     const result = await spec.run(args, { elder, actor: ctx.actor });
     let text = JSON.stringify(result);
-    if (text.length > MAX_RESULT_CHARS) text = text.slice(0, MAX_RESULT_CHARS - 3) + "...";
+    // Voice latency: the agent door gets short results; the family door (Claude) gets full ones.
+    const max = ctx.actor === "agent" ? MAX_RESULT_CHARS : 6000;
+    if (text.length > max) text = text.slice(0, max - 3) + "...";
     const label = spec.label(args, result);
     await writeAudit({ elderId, actor: ctx.actor, tool: spec.name, tier: spec.tier, args, resultSummary: label, ok: true, callId });
     emit(

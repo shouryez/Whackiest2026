@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { runTool } from "../src/control/tiers";
-import { AGENT_TOOLS } from "../src/packs/kaiseho/tools/agentTools";
+import { AGENT_TOOLS } from "../src/packs/kaiseho/tools";
 import { DEMO, seedDemo } from "../src/packs/kaiseho/seed";
 import { getRepo } from "../src/repo";
 

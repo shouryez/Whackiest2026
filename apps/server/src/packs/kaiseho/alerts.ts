@@ -74,7 +74,10 @@ export async function createAlert(input: {
   void Promise.all(
     targets.map(async (m) => {
       const chatId = chatIdFor(m);
-      const ok = chatId ? await sendTelegram(chatId, text) : false;
+      const buttons = alert.severity === "urgent" || alert.severity === "emergency"
+        ? [[{ text: "✓ Acknowledge", callback_data: `ack:${alert.alertId}` }, { text: `📞 Call ${input.elder.preferredName} now`, callback_data: `callnow:${alert.elderId}` }]]
+        : alert.type === "message" ? [[{ text: "☎️ I called her", callback_data: `called:${alert.elderId}` }]] : undefined;
+      const ok = chatId ? await sendTelegram(chatId, text, buttons) : false;
       const channel = `telegram:${m.name}`;
       if (ok) alert.notifiedVia.push(channel);
       emit("alert.notified", alert.familyId, {

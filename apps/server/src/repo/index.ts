@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Elder, Family, Medication, MedLog, Member, Memory, Message,
+  Alert, Audit, Call, CheckIn, Consent, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import { MemoryRepo } from "./memoryRepo";
@@ -22,6 +22,7 @@ export interface Repo {
 
   // medicines
   putMedication(m: Medication): Promise<void>;
+  deleteMedication(elderId: string, medId: string): Promise<void>;
   listMedications(elderId: string): Promise<Medication[]>;
   putMedLog(l: MedLog): Promise<void>;
   listMedLogs(elderId: string, sinceDate?: string): Promise<MedLog[]>;
@@ -35,9 +36,26 @@ export interface Repo {
   putCall(c: Call): Promise<void>;
   getCall(elderId: string, callId: string): Promise<Call | undefined>;
   listCalls(elderId: string): Promise<Call[]>;
+  getCallByConversation(conversationId: string): Promise<Call | undefined>;
+
+  // transcripts (redacted, purged after TRANSCRIPT_RETENTION_HOURS)
+  putTurns(turns: Turn[]): Promise<void>;
+  listTurns(callId: string): Promise<Turn[]>;
+  purgeTurns(nowIso: string): Promise<number>;
+
+  // consent, reminders, family calls, nudges
+  putConsent(c: Consent): Promise<void>;
+  getLatestConsent(elderId: string): Promise<Consent | undefined>;
+  putReminder(r: Reminder): Promise<void>;
+  listReminders(elderId: string): Promise<Reminder[]>;
+  putFamilyCall(f: FamilyCall): Promise<void>;
+  listFamilyCalls(elderId: string, sinceIso?: string): Promise<FamilyCall[]>;
+  putNudge(n: Nudge): Promise<void>;
+  listNudges(elderId: string): Promise<Nudge[]>;
 
   // memories
   putMemory(m: Memory): Promise<void>;
+  getMemory(elderId: string, memoryId: string): Promise<Memory | undefined>;
   listMemories(elderId: string): Promise<Memory[]>;
 
   // alerts
@@ -47,6 +65,7 @@ export interface Repo {
 
   // messages
   putMessage(m: Message): Promise<void>;
+  getMessage(elderId: string, messageId: string): Promise<Message | undefined>;
   listMessages(elderId: string): Promise<Message[]>;
 
   // audit
