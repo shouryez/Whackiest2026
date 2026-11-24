@@ -9,5 +9,4 @@ coverage/
 *.log
 .DS_Store
 ~$*.pptx
-.claude/settings.local.json
 *.tsbuildinfo
