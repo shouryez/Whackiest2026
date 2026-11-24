@@ -37,9 +37,11 @@ function saveEnv(key: string, value: string) {
 const KEY = env.ELEVENLABS_API_KEY;
 const BASE = env.ELEVENLABS_API_BASE || "https://api.elevenlabs.io";
 const PUBLIC = (env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
-const LLM = process.env.ELEVENLABS_LLM || "gemini-2.5-flash";
+const LLM_OVERRIDE = process.env.ELEVENLABS_LLM;
+const LLM = LLM_OVERRIDE || "gemini-2.5-flash";
 const LANGUAGE = process.env.ELEVENLABS_AGENT_LANGUAGE || "hi"; // "kn" once Kannada is tested on day one
-const TTS_MODEL = process.env.ELEVENLABS_AGENT_TTS || "eleven_flash_v2_5";
+const TTS_OVERRIDE = process.env.ELEVENLABS_AGENT_TTS;
+const TTS_MODEL = TTS_OVERRIDE || "eleven_flash_v2_5";
 
 function die(msg: string): never {
   console.error(`\n✗ ${msg}\n`);
@@ -144,8 +146,8 @@ const CALLER_PLACEHOLDERS = {
   weather_note: "Sunny, 31°C in Mysuru", reminder_text: "", privacy_note: "none",
 };
 const FIRST_MESSAGE: Record<string, string> = {
-  kn: "ನಮಸ್ಕಾರ {{preferred_name}}! ನಾನು KaiseHo, {{family_contact_name}} ಅವರ AI ಸಹಾಯಕಿ. ಹೇಗಿದ್ದೀರಾ?",
-  hi: "नमस्ते {{preferred_name}}! मैं KaiseHo से बोल रही हूँ, {{family_contact_name}} की AI सहायक। आप कैसी हैं?",
+  kn: "ನಮಸ್ಕಾರ {{preferred_name}}! ನಾನು KaiseHo, {{family_contact_name}} ಅವರ AI ಸಹಾಯಕ. ಹೇಗಿದ್ದೀರಾ?",
+  hi: "नमस्ते {{preferred_name}}! मैं KaiseHo हूँ, {{family_contact_name}} का AI सहायक। आज आपकी तबीयत कैसी है?",
   en: "Hello {{preferred_name}}! This is KaiseHo, {{family_contact_name}}'s AI helper. How are you today?",
 };
 const DATA_COLLECTION = {
@@ -167,7 +169,31 @@ const EVAL_CRITERIA = [
   { id: "asked_all_meds", name: "asked_all_meds", conversation_goal_prompt: "The agent asked about every medicine listed as due today, by name." },
 ];
 
+async function adoptByName(envKey: string, name: string) {
+  if (env[envKey]) return;
+  const list = await el<{ agents: { agent_id: string; name: string }[] }>("GET", "/v1/convai/agents?page_size=100");
+  const found = list.agents.find((a) => a.name === name);
+  if (found) {
+    saveEnv(envKey, found.agent_id);
+    console.log(`✓ Found your existing agent "${name}" (${found.agent_id}): updating it instead of creating a new one`);
+  }
+}
+
+/** On updates, keep the LLM / TTS model chosen in the dashboard unless overridden via env. */
+function keepDashboardChoices(cfg: Record<string, any>, existing: Record<string, any> | null) {
+  if (!existing) return cfg;
+  const out = structuredClone(cfg);
+  if (!LLM_OVERRIDE && existing.agent?.prompt?.llm) out.agent.prompt.llm = existing.agent.prompt.llm;
+  if (!TTS_OVERRIDE && existing.tts?.model_id) out.tts.model_id = existing.tts.model_id;
+  return out;
+}
+
 async function upsertAgent(envKey: string, name: string, conversation_config: Record<string, unknown>, platform_settings?: Record<string, unknown>): Promise<string> {
+  await adoptByName(envKey, name);
+  if (env[envKey]) {
+    const cur = await el<{ conversation_config: Record<string, unknown> }>("GET", `/v1/convai/agents/${env[envKey]}`).catch(() => null);
+    conversation_config = keepDashboardChoices(conversation_config, cur?.conversation_config ?? null);
+  }
   const body = { name, tags: ["kaiseho"], conversation_config, ...(platform_settings ? { platform_settings } : {}) };
   const send = async (b: typeof body) => {
     if (env[envKey]) {
@@ -208,6 +234,33 @@ async function ensurePhone(agentId: string) {
   console.log(`✓ Phone ${num.phone_number} (${num.provider}) → kaiseho-caller`);
 }
 
+// ---------- 5. post-call webhook (workspace webhook + HMAC) ----------
+async function ensureWebhook(): Promise<boolean> {
+  const url = `${PUBLIC}/webhooks/elevenlabs`;
+  try {
+    type W = { webhook_id: string; name?: string; webhook_url?: string };
+    const list = await el<{ webhooks: W[] }>("GET", "/v1/workspace/webhooks");
+    let id = list.webhooks.find((w) => w.name === "kaiseho-postcall" || w.webhook_url === url)?.webhook_id;
+    if (id && env.ELEVENLABS_WEBHOOK_SECRET && list.webhooks.find((w) => w.webhook_id === id)?.webhook_url === url) {
+      console.log("✓ Post-call webhook already set");
+    } else {
+      if (id) await el("DELETE", `/v1/workspace/webhooks/${id}`).catch(() => {});
+      const r = await el<{ webhook_id: string; webhook_secret?: string }>("POST", "/v1/workspace/webhooks", {
+        settings: { auth_type: "hmac", name: "kaiseho-postcall", webhook_url: url },
+      });
+      id = r.webhook_id;
+      if (r.webhook_secret) saveEnv("ELEVENLABS_WEBHOOK_SECRET", r.webhook_secret);
+      console.log(`✓ Post-call webhook created → ${url}${r.webhook_secret ? " (secret saved to .env)" : " (no secret returned: copy it from the dashboard)"}`);
+    }
+    await el("PATCH", "/v1/convai/settings", { webhooks: { post_call_webhook_id: id, events: ["transcript", "call_initiation_failure"], send_audio: false } });
+    console.log("✓ Agents will send transcripts + call failures to it (no audio)");
+    return Boolean(env.ELEVENLABS_WEBHOOK_SECRET);
+  } catch (err) {
+    console.log(`! Couldn't set the webhook automatically: ${(err as Error).message.slice(0, 240)}`);
+    return false;
+  }
+}
+
 // ---------- run ----------
 async function main() {
   console.log("KaiseHo · ElevenLabs setup\n");
@@ -237,21 +290,22 @@ async function main() {
       prompt: { prompt: briefingPrompt, llm: LLM, mcp_server_ids: [familyMcp] },
       dynamic_variables: { dynamic_variable_placeholders: { recipient_name: "Ravi", relation: "son", elder_preferred_name: "Amma", alert_type: "scam", alert_summary: "Amma reported a digital-arrest scam call. She has not sent money.", alert_id: "alr_test", family_id: "fam_lakshmi", elder_address: "", recommended_actions: "Please call her today." } },
     },
-    tts: { voice_id: voice, model_id: TTS_MODEL },
+    // ElevenLabs rule: English agents must use turbo/flash v2 (non-English agents use v2.5+).
+    tts: { voice_id: voice, model_id: "eleven_flash_v2" },
     conversation: { max_duration_seconds: 240 },
   });
 
   await ensurePhone(callerId);
+  const webhookOk = await ensureWebhook();
 
   console.log(`
 ────────────────────────────────────────────────────────────
 Done. IDs saved in apps/server/.env. Restart "pnpm dev" to use them.
 
-ONE manual step (ElevenLabs keeps it in the dashboard):
-  Agents → Settings → Post-call webhook → create:
+${webhookOk ? "Post-call webhook: done ✓" : `Manual step: Agents → Settings → Post-call webhook → create:
     URL:    ${PUBLIC}/webhooks/elevenlabs
     Events: transcript (and call initiation failure). NOT audio.
-  Copy the signing secret into apps/server/.env as ELEVENLABS_WEBHOOK_SECRET=…
+  Copy the signing secret into apps/server/.env as ELEVENLABS_WEBHOOK_SECRET=…`}
 
 Test now: open the agent "kaiseho-caller" → Test AI agent, and watch http://localhost:3000/live
 Language: agent speaks ${LANGUAGE}. After testing Kannada, re-run with ELEVENLABS_AGENT_LANGUAGE=kn.
