@@ -1,240 +1,122 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { api, API, type Alert, type LiveEvent, type Overview, type TodayView } from "./api";
+import { Activity, CalendarClock, ChevronRight, MessageSquareText, PhoneCall, PhoneOutgoing, Play, ShieldCheck, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { FamilyCallsCard, LiveCallChip, MoodPainChart, NudgeCard, SummaryBlock, TodayCard } from "@/components/cards";
+import { Avatar, Badge, Button, Card, CardHeader, Empty, Skeleton, cx } from "@/components/ui";
+import { post, type Overview } from "@/lib/api";
+import { toFeed } from "@/lib/events";
+import { clock, greeting, timeAgo } from "@/lib/format";
+import { useApi, useLive } from "@/lib/live";
 
-const MOOD_EMOJI = ["", "😞", "😕", "😐", "🙂", "😄"];
-const TIER_STYLE: Record<string, string> = {
-  T0: "bg-white border-t0/40 text-ink",
-  T1: "bg-[#eef3ff] border-t1/50 text-navy",
-  T2: "bg-saffron-soft border-t2/50 text-[#7a3d06]",
-  T3: "bg-[#fdecec] border-t3 text-t3 animate-pulse-red",
-};
-
-function timeOf(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-}
-
-/** One live event → a human line for the feed. */
-function describe(ev: LiveEvent): { text: string; tier?: string; tone: string } {
-  const p = ev.payload as Record<string, any>;
-  switch (ev.type) {
-    case "tool.called":
-      return { text: p.label, tier: p.tier, tone: TIER_STYLE[p.tier] ?? TIER_STYLE.T0 };
-    case "tool.rejected":
-      return { text: `⛔ Blocked by control layer: ${p.tool} (${p.reason})`, tier: p.tier, tone: "bg-white border-ink/30 text-ink" };
-    case "alert.created":
-      return { text: `${p.alert.severity === "urgent" || p.alert.severity === "emergency" ? "🚨" : "🔔"} Alert: ${p.alert.title}`, tone: p.alert.severity === "urgent" || p.alert.severity === "emergency" ? "bg-t3 text-white border-t3" : "bg-white border-forest/40 text-forest" };
-    case "alert.notified":
-      return { text: `📱 ${p.channel} → ${p.to}: ${p.status === "delivered" ? "delivered ✓" : p.status === "not_linked" ? "not linked (dashboard only)" : "failed"}`, tone: p.status === "delivered" ? "bg-forest-soft border-forest/40 text-forest" : "bg-white border-ink/20 text-ink/60" };
-    case "alert.acked":
-      return { text: `✅ Alert acknowledged by ${String(p.by).replace("family:mem_", "")}`, tone: "bg-forest-soft border-forest/40 text-forest" };
-    case "demo.reset":
-      return { text: "🔄 Demo family seeded (14 days of labelled demo history)", tone: "bg-white border-ink/20 text-ink/60" };
-    default:
-      return { text: ev.type, tone: "bg-white border-ink/20 text-ink/60" };
-  }
-}
-
-function TodayCard({ v }: { v: TodayView }) {
-  const max = 5;
+function ActivityFeed() {
+  const { events } = useLive();
+  const items = events.map(toFeed).filter((x) => x && x.kind !== "speech-agent" && x.kind !== "speech-elder").reverse().slice(0, 7);
   return (
-    <section className="rounded-2xl border border-sand bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-ink/50">TODAY · {v.date}</p>
-          <h2 className="mt-1 text-2xl font-extrabold text-forest">
-            {v.elder.name} {v.elder.preferredName}
-            <span className="ml-2 text-base font-normal text-ink/50">{v.elder.age} · {v.elder.city}</span>
-          </h2>
-          <p className="text-sm text-ink/60">Daily call {v.elder.callTimeLocal} · {v.elder.languages.join(" / ").toUpperCase()} · {v.elder.status}</p>
-        </div>
-        <div className="text-5xl" title="mood">{v.wellbeing?.mood ? MOOD_EMOJI[v.wellbeing.mood] : "📞"}</div>
-      </div>
-
-      <div className="mt-4 divide-y divide-dashed divide-sand">
-        {v.meds.map((m) => (
-          <div key={`${m.medId}-${m.slot}`} className="flex justify-between py-2 text-[15px]">
-            <span>💊 {m.name} · {m.slot}</span>
-            <span className={m.status === "taken" ? "font-bold text-forest" : m.status === "missed" ? "font-bold text-t3" : m.status === "unsure" ? "font-bold text-t2" : "text-ink/40"}>
-              {m.status === "taken" ? "✓ taken" : m.status === "missed" ? "✗ missed" : m.status === "unsure" ? "? unsure" : "not asked yet"}
-            </span>
-          </div>
-        ))}
-        <div className="flex justify-between py-2 text-[15px]"><span>🙂 Mood</span><span className="font-semibold">{v.wellbeing?.mood ? `${v.wellbeing.mood} / 5` : "—"}</span></div>
-        <div className="flex justify-between py-2 text-[15px]"><span>😴 Sleep</span><span className="font-semibold">{v.wellbeing?.sleep ?? "—"}</span></div>
-        <div className="flex justify-between py-2 text-[15px]"><span>🦵 Pain</span><span className="font-semibold">{v.wellbeing?.pain ? `${v.wellbeing.pain.where} ${v.wellbeing.pain.level}/10` : "—"}</span></div>
-      </div>
-
-      <div className="mt-4">
-        <p className="text-xs font-semibold tracking-widest text-ink/50">MOOD · LAST 14 DAYS <span className="font-normal">(demo history)</span></p>
-        <div className="mt-2 flex h-20 items-end gap-1.5">
-          {v.trend.map((t) => (
-            <div key={t.date} title={`${t.date}: mood ${t.mood ?? "—"}`} className={`flex-1 rounded-t ${t.mood !== null && t.mood <= 2 ? "bg-saffron" : "bg-[#9cc5a9]"}`} style={{ height: `${((t.mood ?? 0) / max) * 100}%` }} />
+    <Card className="h-full">
+      <CardHeader icon={Activity} kicker="Live" title="What KaiseHo is doing" action={<Link href="/live" className="text-xs font-semibold text-forest hover:underline">Open Live Ops →</Link>} />
+      {items.length === 0 ? (
+        <Empty icon={Activity} title="Quiet for now">Tool calls, alerts and summaries appear here the moment they happen.</Empty>
+      ) : (
+        <ol className="relative space-y-3 before:absolute before:top-2 before:bottom-2 before:left-[7px] before:w-px before:bg-sand">
+          {items.map((it) => (
+            <li key={it!.id} className="animate-slide-in relative pl-6">
+              <span className={cx("absolute top-1.5 left-0 size-[15px] rounded-full border-[3px] border-paper",
+                it!.kind === "alert-urgent" ? "bg-danger" : it!.tier === "T3" ? "bg-t3" : it!.tier === "T2" ? "bg-t2" : it!.tier === "T1" ? "bg-t1" : it!.kind === "ack" || it!.kind === "summary" ? "bg-[#2e9e5b]" : "bg-sand-deep")} />
+              <p className="text-sm leading-snug font-semibold">{it!.text}</p>
+              <p className="text-xs text-muted">{clock(it!.ts)}{it!.detail ? ` · ${it!.detail.slice(0, 70)}` : ""}</p>
+            </li>
           ))}
-        </div>
-        <p className="mt-2 text-sm text-ink/60">Medicine adherence (14 days): <b className="text-forest">{v.adherence14d ?? "—"}%</b></p>
-      </div>
-
-      {v.followUps.length > 0 && (
-        <div className="mt-4 rounded-xl bg-saffron-soft p-3 text-sm">
-          <p className="font-semibold text-rust">KaiseHo will follow up on</p>
-          <ul className="mt-1 list-disc pl-5">{v.followUps.map((f) => <li key={f}>{f}</li>)}</ul>
-        </div>
+        </ol>
       )}
-      <p className="mt-3 text-xs text-ink/50">🔒 {v.privateCount} private item{v.privateCount === 1 ? "" : "s"}: {v.elder.preferredName} asked to keep {v.privateCount === 1 ? "it" : "them"} private · 🎙️ no audio stored · data stays in India</p>
-    </section>
+    </Card>
   );
 }
 
-function AlertsCard({ alerts, onAck }: { alerts: Alert[]; onAck: (id: string) => void }) {
-  const open = alerts.filter((a) => a.status === "open" && (a.severity === "urgent" || a.severity === "emergency"));
-  const recent = alerts.slice(0, 6);
-  return (
-    <section className="rounded-2xl border border-sand bg-white p-5 shadow-sm">
-      <p className="text-xs font-semibold tracking-widest text-ink/50">ALERTS {open.length > 0 && <span className="ml-1 rounded-full bg-t3 px-2 py-0.5 text-white">{open.length} open</span>}</p>
-      {recent.length === 0 && <p className="mt-3 text-sm text-ink/50">No alerts yet. All quiet.</p>}
-      <div className="mt-3 space-y-2">
-        {recent.map((a) => (
-          <div key={a.alertId} className={`rounded-xl border p-3 text-sm ${a.severity === "urgent" || a.severity === "emergency" ? "border-t3/50 bg-[#fdecec]" : "border-sand bg-cream"}`}>
-            <div className="flex items-center justify-between gap-2">
-              <b className={a.severity === "urgent" || a.severity === "emergency" ? "text-t3" : "text-forest"}>{a.severity === "urgent" ? "🚨 " : a.type === "message" ? "💬 " : "🔔 "}{a.title}</b>
-              {a.status === "open" && (a.severity === "urgent" || a.severity === "emergency") ? (
-                <button onClick={() => onAck(a.alertId)} className="rounded-lg bg-forest px-3 py-1 text-xs font-semibold text-white hover:opacity-90">✓ Acknowledge</button>
-              ) : (
-                <span className="text-xs text-ink/50">{a.status === "acked" ? "acknowledged" : timeOf(a.createdAt)}</span>
-              )}
-            </div>
-            <p className="mt-1 text-ink/80">{a.body}</p>
-            {a.type === "scam" && <p className="mt-1 text-xs text-ink/60">Pattern: {String((a.data as any).pattern ?? "").replace("_", " ")} · Cyber helpline 1930</p>}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+export default function OverviewPage() {
+  const { data, error } = useApi<Overview>("/family/overview");
+  const { data: starters } = useApi<{ starters: { starter: string; why: string }[] }>("/elders/eld_lakshmi/starters");
+  const { bump } = useLive();
+  const [busy, setBusy] = useState<string | null>(null);
+  const e = data?.elders[0];
 
-export default function Home() {
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [events, setEvents] = useState<LiveEvent[]>([]);
-  const [health, setHealth] = useState<{ telegram: boolean; elevenlabs: boolean } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const since = useRef(0);
-  const dirty = useRef(true);
-
-  const loadOverview = useCallback(async () => {
-    try {
-      setOverview(await api<Overview>("/api/family/overview"));
-      setError(null);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetch(`${API}/health`).then((r) => r.json()).then(setHealth).catch(() => setHealth(null));
-    let alive = true;
-    let inFlight = false;
-    // Poll live events every second (plan.md Phase 0); refresh the overview when something happened.
-    const tick = async () => {
-      if (inFlight) return;
-      inFlight = true;
-      try {
-        const res = await api<{ last: number; events: LiveEvent[] }>(`/api/live/events?since=${since.current}`);
-        if (res.last < since.current) {
-          // Server restarted or demo reset: start over.
-          since.current = 0;
-          setEvents([]);
-          dirty.current = true;
-          return;
-        }
-        if (res.events.length) {
-          since.current = res.events[res.events.length - 1].id;
-          setEvents((prev) => {
-            const seen = new Set(prev.map((e) => e.id));
-            const fresh = res.events.filter((e) => !seen.has(e.id)).reverse();
-            return [...fresh, ...prev].slice(0, 80);
-          });
-          dirty.current = true;
-        }
-        if (dirty.current) {
-          dirty.current = false;
-          await loadOverview();
-        }
-        setError(null);
-      } catch (e) {
-        setError((e as Error).message);
-      } finally {
-        inFlight = false;
-      }
-    };
-    void tick();
-    const id = setInterval(() => alive && void tick(), 1000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [loadOverview]);
-
-  const ack = async (id: string) => {
-    await api(`/api/alerts/${id}/ack`, { method: "POST" });
-    dirty.current = true;
-  };
-  const demo = async (path: string) => {
-    await api(`/api/demo/${path}`, { method: "POST" });
-    since.current = 0;
-    setEvents([]);
-    dirty.current = true;
+  const act = async (key: string, path: string, body?: unknown) => {
+    setBusy(key);
+    try { await post(path, body); bump(); } finally { setTimeout(() => setBusy(null), 1200); }
   };
 
-  const elder = overview?.elders[0];
+  if (error) return <Empty icon={ShieldCheck} title="Can't reach the KaiseHo server">Start it with <code>pnpm dev</code> ({error}).</Empty>;
+  if (!data || !e) return <div className="grid gap-5 lg:grid-cols-3"><Skeleton className="h-64" /><Skeleton className="h-64 lg:col-span-2" /><Skeleton className="h-80 lg:col-span-2" /><Skeleton className="h-80" /></div>;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-5">
+      <div className="animate-fade-up flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-forest">Kaise<span className="text-saffron">Ho</span> <span className="text-base font-normal text-ink/50">· family dashboard</span></h1>
-          <p className="text-sm text-ink/60">{overview?.family.name ?? "…"} · powered by Ek Call</p>
+          <p className="text-sm font-semibold text-saffron-deep">{greeting()}, Ravi 👋</p>
+          <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight sm:text-[42px] sm:leading-tight">
+            Here's how <span className="text-forest">{e.elder.preferredName}</span> is doing
+          </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className={`rounded-full px-3 py-1 ${error ? "bg-[#fdecec] text-t3" : "bg-forest-soft text-forest"}`}>{error ? `● server: ${error}` : "● live"}</span>
-          <span className="rounded-full bg-white px-3 py-1 text-ink/70 ring-1 ring-sand">Telegram {health?.telegram ? "✓" : "off"}</span>
-          <span className="rounded-full bg-white px-3 py-1 text-ink/70 ring-1 ring-sand">ElevenLabs {health?.elevenlabs ? "✓" : "browser test"}</span>
-          <button onClick={() => demo("seed")} className="rounded-full bg-white px-3 py-1 text-ink/70 ring-1 ring-sand hover:bg-sand">↺ Reset demo</button>
-          <button onClick={() => demo("simulate-scam-alert")} className="rounded-full bg-white px-3 py-1 text-ink/70 ring-1 ring-sand hover:bg-sand">Fallback: inject scam alert</button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" icon={Play} disabled={busy === "play"} onClick={() => act("play", "/demo/play-call", { scam: true })}>
+            {busy === "play" ? "Calling…" : "Play demo call"}
+          </Button>
+          <Button icon={PhoneOutgoing} disabled={busy === "call"} onClick={() => act("call", `/elders/${e.elder.elderId}/call-now`)}>
+            {busy === "call" ? "Ringing…" : `Call ${e.elder.preferredName} now`}
+          </Button>
         </div>
-      </header>
+      </div>
 
-      <div className="grid gap-5 lg:grid-cols-5">
-        <div className="space-y-5 lg:col-span-2">
-          {elder ? <TodayCard v={elder} /> : <div className="rounded-2xl bg-white p-6 text-ink/50">Loading…</div>}
-          <AlertsCard alerts={overview?.alerts ?? []} onAck={ack} />
-        </div>
+      <div className="grid gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-4"><FamilyCallsCard stats={e.familyCalls} elderId={e.elder.elderId} /></div>
+        <div className="lg:col-span-8"><NudgeCard nudge={e.nudge} starters={starters?.starters} elderId={e.elder.elderId} name={e.elder.preferredName} /></div>
+      </div>
 
-        <section className="rounded-2xl bg-[#0b0e24] p-5 text-[#e8eaf6] shadow-sm lg:col-span-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-[0.2em] text-[#8c93c9]">LIVE · TOOL CALLS & ALERTS</p>
-            <div className="flex gap-2 text-[10px] font-bold">
-              <span className="rounded bg-t0 px-1.5 py-0.5">T0 read</span>
-              <span className="rounded bg-t1 px-1.5 py-0.5">T1 log</span>
-              <span className="rounded bg-t2 px-1.5 py-0.5">T2 outward</span>
-              <span className="rounded bg-t3 px-1.5 py-0.5">T3 safety</span>
+      <div className="grid gap-5 lg:grid-cols-12">
+        <Card className="lg:col-span-7">
+          <div className="flex flex-wrap items-start gap-4">
+            <Avatar name={e.elder.name} ring={e.ring} size={72} pulse={Boolean(e.liveCall)} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-display text-2xl font-semibold">{e.elder.name} {e.elder.preferredName}</h2>
+                <LiveCallChip card={e} />
+                {e.ring === "green" && !e.liveCall && <Badge tone="forest">Called · all fine today</Badge>}
+                {e.ring === "amber" && <Badge tone="saffron">Worth a look</Badge>}
+                {e.ring === "red" && <Badge tone="danger">Needs attention</Badge>}
+                {e.ring === "grey" && <Badge>Not called yet today</Badge>}
+              </div>
+              <p className="mt-0.5 text-sm text-muted">{e.elder.age} · {e.elder.city} · speaks {e.elder.languages.map((l) => ({ kn: "Kannada", hi: "Hindi", en: "English" })[l] ?? l).join(" & ")}</p>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                <span className="inline-flex items-center gap-1"><CalendarClock className="size-3.5" />Daily call at <b className="text-ink">{e.elder.callTimeLocal}</b> {e.elder.status !== "active" && <Badge tone="saffron">{e.elder.status}</Badge>}</span>
+                {e.lastCall?.at && <span className="inline-flex items-center gap-1"><PhoneCall className="size-3.5" />Last call {timeAgo(e.lastCall.at)}</span>}
+              </div>
             </div>
           </div>
-          <div className="mt-4 space-y-2">
-            {events.length === 0 && <p className="py-10 text-center text-sm text-[#8c93c9]">Waiting for a call… start a browser test call in ElevenLabs, or run <code className="rounded bg-white/10 px-1">pnpm simulate</code>.</p>}
-            {events.map((ev) => {
-              const d = describe(ev);
-              return (
-                <div key={ev.id} className={`animate-slide-in flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-[15px] ${d.tone}`}>
-                  <span><span className="mr-2 font-mono text-xs opacity-60">{timeOf(ev.ts)}</span>{d.text}</span>
-                  {d.tier && <span className="shrink-0 rounded-md bg-black/10 px-2 py-0.5 text-[11px] font-extrabold">{d.tier}</span>}
-                </div>
-              );
-            })}
+          <div className="mt-5 rounded-2xl bg-cream/70 p-4 ring-1 ring-sand">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted">Latest check-in</p>
+            {e.lastCall?.summary ? <SummaryBlock summary={e.lastCall.summary} /> : <p className="text-sm text-muted">No summary yet.</p>}
           </div>
-          <p className="mt-5 text-center text-xs text-[#8c93c9]">Approval lives in our server, not in the model · No money tools exist · Every action audited · No audio stored</p>
-        </section>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="secondary" icon={MessageSquareText} href={`/elder/${e.elder.elderId}#messages`}>Leave a message</Button>
+            <Button variant="ghost" href={`/elder/${e.elder.elderId}`}>Open {e.elder.preferredName}'s page <ChevronRight className="size-4" /></Button>
+          </div>
+        </Card>
+        <div className="lg:col-span-5"><TodayCard v={e} /></div>
       </div>
-    </main>
+
+      <div className="grid gap-5 lg:grid-cols-12">
+        <Card className="lg:col-span-8">
+          <CardHeader icon={TrendingUp} kicker="Last 14 days · demo history + live calls" title="Mood and knee pain"
+            action={<div className="flex gap-3 text-xs text-muted"><span className="flex items-center gap-1"><span className="h-1 w-4 rounded bg-saffron" />Mood</span><span className="flex items-center gap-1"><span className="h-0 w-4 border-t-2 border-dashed border-forest" />Pain</span></div>} />
+          <MoodPainChart data={e.trend} />
+          <div className="mt-3 grid grid-cols-3 gap-3 border-t border-sand pt-4 text-center">
+            <div><p className="font-display text-2xl font-semibold text-forest">{e.adherence14d ?? "—"}%</p><p className="text-xs text-muted">medicines taken</p></div>
+            <div><p className="font-display text-2xl font-semibold">{e.trend.filter((t) => t.mood !== null && t.mood <= 2).length}</p><p className="text-xs text-muted">low-mood days</p></div>
+            <div><p className="font-display text-2xl font-semibold text-saffron-deep">{e.trend.at(-1)?.pain ?? "—"}/10</p><p className="text-xs text-muted">knee pain now</p></div>
+          </div>
+        </Card>
+        <div className="lg:col-span-4"><ActivityFeed /></div>
+      </div>
+    </div>
   );
 }

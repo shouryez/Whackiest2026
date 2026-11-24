@@ -125,7 +125,7 @@ export const save_memory: AgentTool<typeof saveMemoryShape> = {
   spec: {
     name: "save_memory",
     tier: "T1",
-    label: (a) => (a.private ? `🔒 Saved a private memory (${a.type}), hidden from family` : `🧠 Memory (${a.type}): ${a.text.slice(0, 70)}`),
+    label: (a) => (a.private ? `🔒 Saved a private memory (${a.type}), hidden from family` : `🧠 Memory (${a.type}): ${a.text.length > 70 ? a.text.slice(0, 68) + "…" : a.text}`),
     run: async (a, { elder }) => {
       const repo = getRepo();
       await ensureCall(elder.elderId, a.call_id);

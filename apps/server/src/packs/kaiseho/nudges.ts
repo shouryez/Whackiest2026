@@ -65,8 +65,8 @@ export async function conversationStarters(elder: Elder): Promise<{ starter: str
   for (const m of recent) {
     if (out.length >= 3) break;
     const t = m.text.replace(/\.$/, "");
-    if (m.type === "event" || m.type === "plan") out.push({ starter: `Ask how it went: ${t.charAt(0).toLowerCase() + t.slice(1)}`, why: "She mentioned it in a recent check-in" });
-    else if (m.type === "health") out.push({ starter: `Ask gently about this: ${t.charAt(0).toLowerCase() + t.slice(1)}. Is it better?`, why: "A health complaint she raised" });
+    if (m.type === "event" || m.type === "plan") out.push({ starter: `Ask how it went: ${t}`, why: "She mentioned it in a recent check-in" });
+    else if (m.type === "health") out.push({ starter: `Ask gently about the ${t.charAt(0).toLowerCase() + t.slice(1)}. Is it better?`, why: "A health complaint she raised" });
     else if (m.type === "person") out.push({ starter: `Ask about ${t}`, why: "Someone she talked about" });
     else if (m.type === "preference" || m.type === "story") out.push({ starter: `Bring up: ${t}`, why: "Something she enjoys talking about" });
   }

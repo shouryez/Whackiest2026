@@ -53,15 +53,26 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 | `pnpm test` | Unit tests: PII redaction (en/hi/kn), scam rules, risk-tier enforcement, privacy filtering |
 | `pnpm eval:scam` | Scam Shield eval on 40 cases (20 scams across 9 patterns in 3 languages + 20 legit look-alikes) |
 | `pnpm seed` | Re-seed the demo family on a running server |
+| `pnpm ask-family` | Ask the family MCP door the demo questions (weekly summary, starters, add medicine, message) |
 | `pnpm tunnel` | Public HTTPS URL for ElevenLabs (cloudflared) |
 
-### What's in the box (Phase 0)
-- **`/mcp/agent`** (Streamable HTTP, bearer token): `log_medication`, `log_wellbeing`, `save_memory`, `check_scam`, `send_family_message`
-- **Control layer:** risk tiers T0–T3 enforced in code (T2 needs the elder's consent and is rate-limited; T3 safety alerts override privacy). Every call is audited. `redactPII()` runs on everything stored (OTP, Aadhaar, PAN, card, bank account, IFSC) in English, Hindi and Kannada.
-- **Scam Shield (rules layer):** 9 patterns with weighted keywords in 3 languages, plus authority/secrecy/urgency/money signals. It takes under 1 ms, and on a score of 0.6 or more it sends an urgent family alert.
-- **Alerts:** dashboard + Telegram fan-out; acknowledge from the dashboard.
-- **Dashboard:** today card (meds per slot, mood, sleep, pain, 14-day trend, follow-ups, private-item count) + live tool-call feed colour-coded by tier + alerts.
-- **Privacy:** private memories never reach family views; no audio anywhere; data in memory (DynamoDB in `ap-south-1` in Phase 4).
+### What's in the box
+**Dashboard** (http://localhost:3000):
+- **Overview:** family-calls-this-week metric, nudge with conversation starters, latest check-in summary (English / ಕನ್ನಡ), today card, 14-day mood and pain chart, live activity.
+- **Live Ops** (`/live`): a projector view. Shows call status, the live conversation interleaved with MCP tool calls colour-coded by risk tier, alert fan-out, summary and nudge. Has demo controls: call now, play demo call, emergency, no answer, reset.
+- **Amma's page:** call timeline with summaries, quality checks and redacted transcripts (deleted after 24 h); mood/pain and adherence charts; memories; messages; medicines; schedule.
+- **Alerts:** shows severity routing; acknowledge from here.
+- **Privacy & trust:** her sharing choices, "what KaiseHo stored today", retention, risk tiers, delete everything.
+- **Audit log:** filterable.
+- **Connect:** Claude MCP URL/token and Telegram link codes.
+
+**Server:**
+- **`/mcp/agent`** (voice agent, 13 tools): `log_medication`, `log_wellbeing`, `save_memory`, `check_scam`, `send_family_message`, `get_today_context`, `recall_memory`, `mark_message_delivered`, `set_reminder`, `request_callback`, `update_call_preferences`, `record_consent`, `raise_emergency`
+- **`/mcp/family`** (Claude, 15 tools): weekly summary, trends, status, alerts + ack, conversation starters, audit log, call history, add/update/remove medication, leave a message, call now, set schedule. Try it with `pnpm ask-family`.
+- **Call engine:** a context builder pushes dynamic variables (meds, follow-ups, messages, last summary, live weather). Outbound calls go through ElevenLabs + Twilio, with a labelled *simulated* mode when no keys are set. There is also a no-answer ladder and a local scheduler for reminders, callbacks, retries and daily calls.
+- **Post-call brain:** HMAC-verified webhook, then redacted transcript turns purged after 24 h, then the insight pass (LLM via `LLM_PROVIDER`, or deterministic rules), then memories, quality checks, flag alerts, and nudges + starters. When Amma mentions a family call, it counts toward the metric.
+- **Safety:** risk tiers T0–T3 enforced in code. The emergency cascade alerts all family, places briefing calls to the son and the neighbour, and repeats until acknowledged. Scam Shield, PII redaction (en/hi/kn), and an audit of every call.
+- **Telegram:** `/start <code>` linking and inline buttons (Acknowledge, Call Amma now, I called her). Set the webhook with `POST /internal/telegram/set-webhook`.
 
 ## Plan
 [`plan.md`](plan.md) is the single source of truth: features (P0–P3), MCP tool specs, data model, build phases, demo script.
@@ -69,9 +80,9 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 ## Build status
 - [x] Pitch deck (ideation round)
 - [x] Phase 0: Submission MVP (monorepo, MemoryRepo, `/mcp/agent` 5 tools, control layer, scam rules, Telegram, live dashboard)
-- [ ] Phase 1: Real calls + post-call brain
-- [ ] Phase 2: Family MCP door + dashboard
-- [ ] Phase 3: Emergency cascade, briefing agent, Live Ops, digest
+- [x] Phase 1: Call engine + post-call brain (live phone calls need ElevenLabs/Twilio keys)
+- [x] Phase 2: Family MCP door + full dashboard redesign
+- [ ] Phase 3: Emergency cascade ✓, Live Ops ✓, no-answer ladder ✓; still to do: weekly audio digest, onboarding/consent wizard, scam LLM layer
 - [ ] Phase 4: AWS hardening
 
 ## Team SantaClaude
