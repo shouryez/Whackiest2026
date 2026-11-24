@@ -1,0 +1,26 @@
+{
+  "name": "kaiseho",
+  "private": true,
+  "version": "0.1.0",
+  "description": "KaiseHo, powered by Ek Call: daily AI check-in calls for elderly parents (wHACKiest 2026, Track 01 Make MCP Matter)",
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "dev:server": "pnpm --filter @kaiseho/server dev",
+    "dev:dashboard": "pnpm --filter @kaiseho/dashboard dev",
+    "tunnel": "cloudflared tunnel --url http://localhost:8787",
+    "seed": "tsx scripts/seed-demo.ts",
+    "simulate": "tsx scripts/simulate-call.ts",
+    "eval:scam": "tsx scripts/eval-scam.ts",
+    "test": "pnpm --filter @kaiseho/server test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
