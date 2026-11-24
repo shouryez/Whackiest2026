@@ -50,7 +50,7 @@
 - Priorities: **P0 must work flawlessly in the demo. P1 makes the demo crazy. P2 is polish. P3 is roadmap (slides only).** Never start P2 while any P0 item is broken.
 
 **For the coding assistant**
-- Read this whole file before writing code. Then implement the phases in [Section 17](#17-build-phases-for-claude-code) **in order**, one phase per session, and stop at each phase's acceptance criteria.
+- Read this whole file before writing code. Then implement the phases in [Section 17](#17-build-phases) **in order**, one phase per session, and stop at each phase's acceptance criteria.
 - Language: **TypeScript everywhere** (Node 20+). Use `zod` for every external input (tool args, webhooks, API bodies).
 - Keep every storage call behind a `Repo` interface with two implementations: `MemoryRepo` (default for local dev and the first demo) and `DynamoRepo` (AWS). Switch with `DATA_STORE=memory|dynamo`.
 - Every MCP tool must: validate input with zod → check family/elder scope → check risk tier → do the work → write an audit event → emit a live event → return a **short** text result (under ~400 characters). Voice latency matters.
