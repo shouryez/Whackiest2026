@@ -1,5 +1,5 @@
 "use client";
-import { ArrowLeft, BellRing, Check, CheckCircle2, FileText, Phone, PhoneCall, PhoneOff, Play, RotateCcw, ShieldAlert, Siren, Sparkles, X } from "lucide-react";
+import { ArrowLeft, BellRing, Check, CheckCircle2, FileText, Phone, PhoneCall, PhoneOff, Play, RotateCcw, ShieldAlert, Siren, Sparkles, Timer, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "@/components/ui";
@@ -171,7 +171,8 @@ export default function LiveOps() {
           <div className="mt-auto space-y-2 pt-5">
             <p className="text-[11px] font-bold tracking-[0.2em] text-[#8c93c9]">DEMO CONTROLS</p>
             <button disabled={!!busy} onClick={() => act("call", "/elders/eld_lakshmi/call-now")} className="flex w-full items-center gap-2 rounded-xl bg-saffron px-3 py-2.5 text-sm font-bold text-ink hover:bg-[#f08c22] disabled:opacity-50"><PhoneCall className="size-4" />Call Amma now</button>
-            <button disabled={!!busy} onClick={() => act("play", "/demo/play-call", { scam: true })} className="flex w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"><Play className="size-4" />Play demo call (with scam)</button>
+            <button disabled={!!busy} onClick={() => act("quick", "/elders/eld_lakshmi/call-now", { quick: true })} className="flex w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"><Timer className="size-4" />Quick test call (~45 s, saves credits)</button>
+            <button disabled={!!busy} onClick={() => act("play", "/demo/play-call", { scam: true })} className="flex w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"><Play className="size-4" />Play demo call (free · no voice)</button>
             <div className="grid grid-cols-3 gap-2">
               <button disabled={!!busy} onClick={() => act("em", "/demo/simulate-emergency")} className="flex flex-col items-center gap-1 rounded-xl bg-white/5 px-2 py-2 text-[11px] font-semibold hover:bg-white/10"><Siren className="size-4 text-[#ff8a95]" />Emergency</button>
               <button disabled={!!busy} onClick={() => act("na", "/demo/simulate-no-answer")} className="flex flex-col items-center gap-1 rounded-xl bg-white/5 px-2 py-2 text-[11px] font-semibold hover:bg-white/10"><PhoneOff className="size-4" />No answer</button>

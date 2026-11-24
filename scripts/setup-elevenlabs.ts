@@ -278,7 +278,8 @@ async function main() {
       dynamic_variables: { dynamic_variable_placeholders: { ...CALLER_PLACEHOLDERS, language: { kn: "Kannada", hi: "Hindi", en: "English" }[LANGUAGE] ?? "Hindi" } },
     },
     tts: { voice_id: voice, model_id: TTS_MODEL },
-    conversation: { max_duration_seconds: 300 },
+    // Test-time cap saves credits: ELEVENLABS_MAX_CALL_SECONDS=90 pnpm setup:elevenlabs (demo: 300)
+    conversation: { max_duration_seconds: Number(process.env.ELEVENLABS_MAX_CALL_SECONDS || 300) },
     turn: { turn_timeout: 12, turn_eagerness: "patient" },
   }, { data_collection: DATA_COLLECTION, evaluation: { criteria: EVAL_CRITERIA } });
 

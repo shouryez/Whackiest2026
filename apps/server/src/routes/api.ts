@@ -126,7 +126,9 @@ api.post("/elders/:id/messages", async (c) => {
 });
 api.post("/elders/:id/call-now", async (c) => {
   const e = await elderOr404(c.req.param("id"));
-  const { call } = await callElder(e, "checkin");
+  const b = z.object({ quick: z.boolean().default(false) }).parse(await c.req.json().catch(() => ({})));
+  // quick = ~45 s system test (saves ElevenLabs credits while testing)
+  const { call } = await callElder(e, b.quick ? "quicktest" : "checkin");
   return c.json({ ok: true, callId: call.callId, mode: call.mode });
 });
 api.post("/elders/:id/family-call", async (c) => {
