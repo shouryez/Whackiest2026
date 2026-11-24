@@ -18,7 +18,8 @@
     "eval:scam": "tsx scripts/eval-scam.ts",
     "test": "pnpm --filter @kaiseho/server test",
     "typecheck": "pnpm -r typecheck",
-    "ask-family": "tsx scripts/ask-family.ts"
+    "ask-family": "tsx scripts/ask-family.ts",
+    "setup:elevenlabs": "tsx scripts/setup-elevenlabs.ts"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

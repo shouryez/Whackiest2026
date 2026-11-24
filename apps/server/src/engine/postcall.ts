@@ -48,7 +48,7 @@ export async function handleElevenLabsWebhook(raw: string, signature: string | u
     return { status: 400, body: { error: "bad payload" } };
   }
   const job =
-    parsed.type === "post_call_transcription" ? hooks.onTranscript(parsed)
+    parsed.type === "post_call_transcription" || parsed.type === "transcript" ? hooks.onTranscript(parsed)
     : parsed.type === "call_initiation_failure" ? hooks.onInitiationFailure(parsed)
     : Promise.resolve(); // post_call_audio etc. are ignored on purpose (no audio stored)
   job.catch((err) => console.error("[postcall]", err));
