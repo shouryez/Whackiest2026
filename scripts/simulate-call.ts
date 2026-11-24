@@ -9,9 +9,15 @@
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { existsSync, readFileSync } from "node:fs";
+const ENV_FILE = new URL("../apps/server/.env", import.meta.url);
+const localEnv: Record<string, string> = existsSync(ENV_FILE)
+  ? Object.fromEntries(readFileSync(ENV_FILE, "utf8").split(/\r?\n/).map((l) => l.match(/^([A-Z0-9_]+)=([^#]*)/)).filter(Boolean).map((m) => [m![1], m![2].trim()]))
+  : {};
+
 
 const SERVER = process.env.SERVER_URL ?? "http://localhost:8787";
-const TOKEN = process.env.MCP_AGENT_TOKEN ?? "dev-agent-token";
+const TOKEN = process.env.MCP_AGENT_TOKEN ?? (localEnv.MCP_AGENT_TOKEN || "dev-agent-token");
 const ELDER = "eld_lakshmi";
 const CALL = `call_sim_${Date.now()}`;
 const PAUSE = Number(process.env.PAUSE_MS ?? 1200);

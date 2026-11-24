@@ -4,9 +4,15 @@
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { existsSync, readFileSync } from "node:fs";
+const ENV_FILE = new URL("../apps/server/.env", import.meta.url);
+const localEnv: Record<string, string> = existsSync(ENV_FILE)
+  ? Object.fromEntries(readFileSync(ENV_FILE, "utf8").split(/\r?\n/).map((l) => l.match(/^([A-Z0-9_]+)=([^#]*)/)).filter(Boolean).map((m) => [m![1], m![2].trim()]))
+  : {};
+
 
 const SERVER = process.env.SERVER_URL ?? "http://localhost:8787";
-const TOKEN = process.env.FAMILY_TOKEN ?? "dev-family-token";
+const TOKEN = process.env.FAMILY_TOKEN ?? (localEnv.FAMILY_TOKEN_DEMO || "dev-family-token");
 
 const client = new Client({ name: "kaiseho-family-check", version: "0.1.0" });
 await client.connect(new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp/family`), { requestInit: { headers: { Authorization: `Bearer ${TOKEN}` } } }));
