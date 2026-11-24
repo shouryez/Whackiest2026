@@ -72,6 +72,9 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 - **Call engine:** a context builder pushes dynamic variables (meds, follow-ups, messages, last summary, live weather). Outbound calls go through ElevenLabs + Twilio, with a labelled *simulated* mode when no keys are set. There is also a no-answer ladder and a local scheduler for reminders, callbacks, retries and daily calls.
 - **Post-call brain:** HMAC-verified webhook, then redacted transcript turns purged after 24 h, then the insight pass (LLM via `LLM_PROVIDER`, or deterministic rules), then memories, quality checks, flag alerts, and nudges + starters. When Amma mentions a family call, it counts toward the metric.
 - **Safety:** risk tiers T0–T3 enforced in code. The emergency cascade alerts all family, places briefing calls to the son and the neighbour, and repeats until acknowledged. Scam Shield, PII redaction (en/hi/kn), and an audit of every call.
+- **Weekly audio digest:** Sunday 8 PM. A warm 60-second script (LLM or rules) goes through ElevenLabs TTS to an MP3, then to Telegram audio and the dashboard player. Without a voice key, the dashboard reads it aloud in the browser.
+- **Onboarding + consent first:** `/onboard` adds a parent with status `pending_consent`. Daily calls are blocked until the welcome call records a yes (`record_consent`), which also sets the sharing choices and the call time.
+- **Scam Shield layer 2:** an LLM classifier with a 1.5 s hard timeout. The final score is max(rules, LLM), +0.1 when both agree; it falls back to rules automatically.
 - **Telegram:** `/start <code>` linking and inline buttons (Acknowledge, Call Amma now, I called her). Set the webhook with `POST /internal/telegram/set-webhook`.
 
 ## Plan
@@ -82,7 +85,7 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 - [x] Phase 0: Submission MVP (monorepo, MemoryRepo, `/mcp/agent` 5 tools, control layer, scam rules, Telegram, live dashboard)
 - [x] Phase 1: Call engine + post-call brain (live phone calls need ElevenLabs/Twilio keys)
 - [x] Phase 2: Family MCP door + full dashboard redesign
-- [ ] Phase 3: Emergency cascade ✓, Live Ops ✓, no-answer ladder ✓; still to do: weekly audio digest, onboarding/consent wizard, scam LLM layer
+- [x] Phase 3: emergency cascade + briefing agent, no-answer ladder, Live Ops, weekly audio digest, onboarding + consent call, Scam Shield LLM layer 2
 - [ ] Phase 4: AWS hardening
 
 ## Team SantaClaude

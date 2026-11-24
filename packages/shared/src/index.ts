@@ -83,7 +83,8 @@ export interface Elder {
   callTimeLocal: string;
   callDays: number[];
   conditions: string[];
-  status: "active" | "paused" | "stopped";
+  /** pending_consent: onboarded by family, no daily calls until the elder says yes in the consent call. */
+  status: "active" | "paused" | "stopped" | "pending_consent";
   pausedUntil?: string;
   privacy: { shareMedicines: boolean; shareWellbeing: boolean; shareMemories: boolean };
   consentId?: string;
@@ -199,6 +200,19 @@ export interface FamilyCall {
   by: string; // member name
   source: "button" | "elder_mentioned";
   at: string;
+}
+
+export interface Digest {
+  familyId: string;
+  elderId: string;
+  digestId: string;
+  weekStart: string;
+  weekEnd: string;
+  script: string;
+  audio?: { file: string; bytes: number; voice: string };
+  source: "llm" | "rules";
+  createdAt: string;
+  sentVia: string[];
 }
 
 export interface Nudge {

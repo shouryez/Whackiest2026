@@ -16,6 +16,8 @@ import { raiseEmergency } from "../packs/kaiseho/emergency";
 import { storedToday, timeline, trends, weeklySummary } from "../packs/kaiseho/family";
 import { computeNudge, conversationStarters, familyCallStats, logFamilyCall } from "../packs/kaiseho/nudges";
 import { purgeTranscripts } from "../packs/kaiseho/postcall";
+import { buildDigest } from "../packs/kaiseho/digest";
+import { ttsReady } from "../engine/tts";
 import { DEMO, seedDemo } from "../packs/kaiseho/seed";
 import { filterForFamily, todayView } from "../packs/kaiseho/views";
 import { getRepo } from "../repo";
@@ -152,6 +154,50 @@ api.post("/family/delete-all", async (c) => {
   return c.json({ ok: true, note: "All family data deleted. (Demo: use Reset to seed again.)" });
 });
 
+// ---------- weekly audio digest ----------
+api.get("/elders/:id/digests", async (c) => c.json((await repo.listDigests((await elderOr404(c.req.param("id"))).elderId)).slice(0, 6)));
+api.post("/elders/:id/digest", async (c) => c.json({ ok: true, digest: await buildDigest(await elderOr404(c.req.param("id"))), tts: ttsReady() }));
+
+// ---------- onboarding (P1-9): family adds a parent; no schedule until she consents ----------
+const CITY: Record<string, [number, number]> = {
+  mysuru: [12.2958, 76.6394], mysore: [12.2958, 76.6394], bengaluru: [12.9716, 77.5946], bangalore: [12.9716, 77.5946], mumbai: [19.076, 72.8777],
+  pune: [18.5204, 73.8567], delhi: [28.6139, 77.209], "new delhi": [28.6139, 77.209], chennai: [13.0827, 80.2707], hyderabad: [17.385, 78.4867],
+  kolkata: [22.5726, 88.3639], jaipur: [26.9124, 75.7873], lucknow: [26.8467, 80.9462], ahmedabad: [23.0225, 72.5714], kochi: [9.9312, 76.2673],
+  mangaluru: [12.9141, 74.856], hubballi: [15.3647, 75.124], indore: [22.7196, 75.8577], patna: [25.5941, 85.1376], bhopal: [23.2599, 77.4126],
+};
+const OnboardBody = z.object({
+  elder: z.object({
+    name: z.string().min(2).max(40), preferredName: z.string().min(1).max(20), gender: z.enum(["female", "male", "other"]).optional(), age: z.number().int().min(40).max(110).optional(),
+    language: z.enum(["kn", "hi", "en"]), phone: z.string().regex(/^\+?\d[\d\s-]{8,15}$/), city: z.string().min(2).max(40),
+    callTimeLocal: z.string().regex(/^\d{2}:\d{2}$/), conditions: z.array(z.string().max(40)).max(8).default([]),
+  }),
+  medicines: z.array(z.object({ name: z.string().min(2).max(60), dose: z.string().min(1).max(30), slots: z.array(Slot).min(1) })).max(12).default([]),
+});
+api.post("/onboard", async (c) => {
+  const b = OnboardBody.parse(await c.req.json());
+  const [lat, lon] = CITY[b.elder.city.trim().toLowerCase()] ?? [undefined, undefined];
+  const elderId = newId("eld");
+  await repo.putElder({
+    elderId, familyId: DEMO.familyId, name: b.elder.name, preferredName: b.elder.preferredName, gender: b.elder.gender === "other" ? undefined : b.elder.gender, age: b.elder.age,
+    languages: b.elder.language === "en" ? ["en"] : [b.elder.language, "en"], primaryLanguage: b.elder.language,
+    phone: b.elder.phone.replace(/[\s-]/g, ""), city: b.elder.city, lat, lon, tz: "Asia/Kolkata", callTimeLocal: b.elder.callTimeLocal,
+    callDays: [0, 1, 2, 3, 4, 5, 6], conditions: b.elder.conditions, status: "pending_consent",
+    privacy: { shareMedicines: true, shareWellbeing: true, shareMemories: true }, createdAt: nowIso(),
+  });
+  for (const m of b.medicines) {
+    await repo.putMedication({ elderId, medId: newId("med"), name: m.name, dose: m.dose, slots: m.slots, startDate: localDate("Asia/Kolkata"), refillThresholdDays: 3, active: true, addedBy: ACTOR });
+  }
+  emit("schedule.updated", DEMO.familyId, { status: "pending_consent", by: "family", onboarded: b.elder.preferredName }, elderId);
+  return c.json({ ok: true, elderId });
+});
+api.post("/elders/:id/welcome-call", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  if (env.DEMO_MODE && !elevenLabsReady()) return c.json({ ok: true, mode: "simulated", ...(await playDemoCall(e, { kind: "consent", pauseMs: 1800 })) });
+  const { call } = await callElder(e, "consent");
+  return c.json({ ok: true, mode: call.mode, callId: call.callId });
+});
+api.get("/elders", async (c) => c.json((await repo.listEldersByFamily(DEMO.familyId)).map((e) => ({ elderId: e.elderId, name: e.name, preferredName: e.preferredName, status: e.status, city: e.city }))));
+
 // ---------- live events ----------
 api.get("/live/events", (c) => {
   const since = Number(c.req.query("since") ?? 0) || 0;
@@ -173,8 +219,8 @@ const demo = new Hono();
 demo.use("*", async (c, next) => (env.DEMO_MODE ? next() : c.json({ error: "demo mode off" }, 403)));
 demo.post("/seed", async (c) => { await seedDemo({ resetEvents: true }); return c.json({ ok: true }); });
 demo.post("/play-call", async (c) => {
-  const b = z.object({ scam: z.boolean().default(true), emergency: z.boolean().default(false), pauseMs: z.number().int().min(200).max(6000).optional() }).parse(await c.req.json().catch(() => ({})));
-  const e = await elderOr404(DEMO.elderId);
+  const b = z.object({ scam: z.boolean().default(true), emergency: z.boolean().default(false), pauseMs: z.number().int().min(200).max(6000).optional(), elderId: z.string().optional() }).parse(await c.req.json().catch(() => ({})));
+  const e = await elderOr404(b.elderId ?? DEMO.elderId);
   return c.json({ ok: true, ...(await playDemoCall(e, b)) });
 });
 demo.post("/simulate-scam-alert", async (c) => {
@@ -203,6 +249,7 @@ demo.post("/simulate-no-answer", async (c) => {
   }
   return c.json({ ok: true });
 });
+demo.post("/digest", async (c) => c.json({ ok: true, digest: await buildDigest(await elderOr404(DEMO.elderId)) }));
 demo.post("/nudge", async (c) => c.json({ ok: true, nudge: await computeNudge(await elderOr404(DEMO.elderId)) }));
 demo.post("/purge-transcripts", async (c) => c.json({ ok: true, purged: await purgeTranscripts() }));
 api.route("/demo", demo);

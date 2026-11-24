@@ -1,7 +1,8 @@
 "use client";
-import { BadgeCheck, Brain, CalendarClock, ChevronDown, Clock, HeartPulse, Lock, MessageSquareText, Phone, PhoneOutgoing, Pill, Plus, Send, Timer, Trash2, TrendingUp } from "lucide-react";
+import { Handshake, BadgeCheck, Brain, CalendarClock, ChevronDown, Clock, HeartPulse, Lock, MessageSquareText, Phone, PhoneOutgoing, Pill, Plus, Send, Timer, Trash2, TrendingUp } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { DigestCard } from "@/components/DigestCard";
 import { AdherenceChart, MoodPainChart, SummaryBlock, TodayCard } from "@/components/cards";
 import { Avatar, Badge, Button, Card, CardHeader, Empty, Skeleton, cx } from "@/components/ui";
 import { api, post, type Memory, type Message, type Profile, type TimelineCall, type TodayView, type TrendPoint } from "@/lib/api";
@@ -174,6 +175,20 @@ export default function ElderPage() {
         </nav>
       </Card>
 
+      {e.status === "pending_consent" ? (
+        <Card tone="saffron">
+          <div className="flex flex-wrap items-center gap-4">
+            <Handshake className="size-8 text-forest" />
+            <div className="min-w-0 flex-1"><p className="font-bold">Consent first: no daily calls yet</p><p className="text-sm text-muted">KaiseHo makes one welcome call. It discloses it&apos;s an AI, asks if daily calls are okay, at what time, and what can be shared. The schedule starts only on a yes.</p></div>
+            <Button icon={PhoneOutgoing} onClick={async () => { await post(`/elders/${id}/welcome-call`); bump(); }}>Make the welcome call</Button>
+          </div>
+        </Card>
+      ) : profile.consent && (
+        <p className="flex flex-wrap items-center gap-2 rounded-2xl bg-forest-soft px-4 py-2.5 text-sm text-forest"><Handshake className="size-4" />
+          <b>Consent recorded</b> {new Date(profile.consent.recordedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} · daily calls {profile.consent.dailyCalls ? `yes${profile.consent.preferredTime ? ` at ${profile.consent.preferredTime}` : ""}` : "no"} · shares {[profile.consent.shareMedicines && "medicines", profile.consent.shareWellbeing && "wellbeing", profile.consent.shareMemories && "memories"].filter(Boolean).join(", ") || "safety alerts only"}
+        </p>
+      )}
+
       <div id="today" className="grid scroll-mt-24 gap-5 lg:grid-cols-2">
         <TodayCard v={today} />
         <Card>
@@ -224,6 +239,8 @@ export default function ElderPage() {
         <section id="messages" className="scroll-mt-24"><MessagesPanel elderId={id} /></section>
         <section id="medicines" className="scroll-mt-24"><MedicinesPanel elderId={id} profile={profile} reload={reloadProfile} /></section>
       </div>
+
+      <DigestCard elderId={id} name={e.preferredName} />
 
       <section id="schedule" className="scroll-mt-24">
         <Card>

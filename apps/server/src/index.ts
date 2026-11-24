@@ -14,6 +14,8 @@ import { callElder, startDailyTicker } from "./packs/kaiseho/calls";
 import { kaisehoPostCall, startPurgeJob } from "./packs/kaiseho/postcall";
 import { DEMO, seedDemo } from "./packs/kaiseho/seed";
 import { getRepo } from "./repo";
+import { readAudio } from "./engine/tts";
+import { startDigestTicker } from "./packs/kaiseho/digest";
 import { api } from "./routes/api";
 import { telegramRoutes } from "./routes/telegram";
 
@@ -72,6 +74,13 @@ app.post("/internal/demo/seed", internalAuth, async (c) => { await seedDemo({ re
 app.post("/internal/telegram/set-webhook", internalAuth, async (c) =>
   c.json({ ok: await setTelegramWebhook(`${env.PUBLIC_BASE_URL}/webhooks/telegram/${env.TELEGRAM_WEBHOOK_SECRET}`) }));
 
+// ---------- media (digest MP3s; family token via ?token= so <audio> can play it) ----------
+app.get("/media/digests/:file", familyAuth, async (c) => {
+  const buf = await readAudio(c.req.param("file") ?? "");
+  if (!buf) return c.json({ error: "not found" }, 404);
+  return c.body(new Uint8Array(buf), 200, { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600" });
+});
+
 // ---------- dashboard API ----------
 app.use("/api/*", cors({ origin: (o) => o ?? "*", allowHeaders: ["Authorization", "Content-Type"], allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"] }));
 app.use("/api/*", async (c, next) => (c.req.method === "OPTIONS" ? next() : familyAuth(c, next)));
@@ -87,6 +96,7 @@ app.onError((err, c) => {
 if (env.DEMO_MODE) await seedDemo();
 startPurgeJob();
 startDailyTicker();
+startDigestTicker();
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {
   console.log(`Ek Call server (KaiseHo pack) on http://localhost:${info.port}`);
   console.log(`  MCP doors: ${env.PUBLIC_BASE_URL}/mcp/agent (voice agent) · ${env.PUBLIC_BASE_URL}/mcp/family (Claude)`);

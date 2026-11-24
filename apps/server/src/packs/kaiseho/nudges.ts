@@ -7,6 +7,7 @@ import { escapeHtml, sendTelegram } from "../../engine/notify/telegram";
 import { env } from "../../env";
 import { getRepo } from "../../repo";
 import { filterForFamily } from "./views";
+import { pr } from "./pronouns";
 
 /**
  * Family nudges + conversation starters (plan.md P0-13) and the headline metric
@@ -66,7 +67,7 @@ export async function conversationStarters(elder: Elder): Promise<{ starter: str
     if (out.length >= 3) break;
     const t = m.text.replace(/\.$/, "");
     if (m.type === "event" || m.type === "plan") out.push({ starter: `Ask how it went: ${t}`, why: "She mentioned it in a recent check-in" });
-    else if (m.type === "health") out.push({ starter: `Ask gently about the ${t.charAt(0).toLowerCase() + t.slice(1)}. Is it better?`, why: "A health complaint she raised" });
+    else if (m.type === "health") out.push({ starter: `Ask gently whether the ${t.charAt(0).toLowerCase() + t.slice(1)} is better`, why: "A health complaint she raised" });
     else if (m.type === "person") out.push({ starter: `Ask about ${t}`, why: "Someone she talked about" });
     else if (m.type === "preference" || m.type === "story") out.push({ starter: `Bring up: ${t}`, why: "Something she enjoys talking about" });
   }
@@ -83,6 +84,7 @@ export async function computeNudge(elder: Elder): Promise<Nudge | null> {
   const checkIns = await repo.listCheckIns(elder.elderId, addDays(today, -6));
   const lastThree = checkIns.slice(-3);
   const n = elder.preferredName;
+  const p = pr(elder);
   const alerts = (await repo.listAlerts(elder.familyId)).filter((a) => a.elderId === elder.elderId && a.createdAt.slice(0, 10) >= addDays(today, -1));
   const missed = (await repo.listMedLogs(elder.elderId, addDays(today, -1))).filter((l) => l.status === "missed");
   const stats = await familyCallStats(elder);
@@ -91,9 +93,9 @@ export async function computeNudge(elder: Elder): Promise<Nudge | null> {
   let text = "";
   let reason = "";
   if (alerts.some((a) => a.type === "scam")) {
-    text = `${n} had a scam scare today${lastThree.at(-1)?.pain ? ` and mentioned her ${lastThree.at(-1)!.pain!.where}` : ""}. Call her tonight?`; reason = "scam";
+    text = `${n} had a scam scare today${lastThree.at(-1)?.pain ? ` and mentioned ${p.hers} ${lastThree.at(-1)!.pain!.where}` : ""}. Call ${p.her} tonight?`; reason = "scam";
   } else if (lastThree.length >= 3 && lastThree.every((c) => (c.mood ?? 5) <= 2)) {
-    text = `${n} sounded low 3 days in a row. Call her tonight?`; reason = "low_mood";
+    text = `${n} sounded low 3 days in a row. Call ${p.her} tonight?`; reason = "low_mood";
   } else if (missed.length >= 2) {
     text = `${n} missed ${missed.length} doses in 2 days. A gentle call might help.`; reason = "missed_meds";
   } else if (lastThree.length >= 2 && (lastThree.at(-1)?.pain?.level ?? 0) - (lastThree[0]?.pain?.level ?? 0) >= 2) {

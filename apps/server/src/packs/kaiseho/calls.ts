@@ -13,7 +13,9 @@ import { buildContext } from "./context";
  * and the no-answer ladder (plan.md Section 8.4).
  */
 export async function callElder(elder: Elder, reason: string, extras: Record<string, string> = {}, attempt = 1) {
-  if (elder.status !== "active" && reason === "daily") throw new Error(`calls are ${elder.status} for ${elder.preferredName}`);
+  // Consent first: until the elder says yes, the only call allowed is the consent (welcome) call.
+  if (elder.status === "pending_consent" && reason !== "consent") throw new Error(`${elder.preferredName} hasn't consented yet: make the welcome call first`);
+  if ((elder.status === "paused" || elder.status === "stopped") && reason === "daily") throw new Error(`calls are ${elder.status} for ${elder.preferredName}`);
   return startCall({
     elder, reason, extras, attempt, buildContext,
     onFailure: (call) => onNoAnswer(elder, call),

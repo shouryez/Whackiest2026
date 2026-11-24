@@ -30,14 +30,25 @@ const SCRIPT = (withScam: boolean, withEmergency: boolean): Step[] => [
   { agent: "I'll call you tomorrow at 9. Take care, Amma!", say: "Bye, beta." },
 ];
 
+const CONSENT_SCRIPT = (e: Elder, family: string): Step[] => [
+  { agent: `Namaskara ${e.preferredName}! I'm KaiseHo, an AI helper that ${family} set up. I'm not a person, I'm a computer voice. May I take one minute to explain?`, say: "Yes, tell me." },
+  { agent: `${family} would like me to call you once a day for two minutes, just to ask about your medicines and how you are, and send them a short summary. Is that okay with you?`, say: "Okay, that's fine. But not too early." },
+  { agent: "What time suits you best?", say: "Around ten in the morning." },
+  { agent: `Is there anything you don't want me to tell ${family}? You can say "don't tell" any time. Only scams or emergencies always go to family, for your safety.`, say: "Medicines and health is fine. Don't tell them my personal stories." },
+  { agent: "Thank you. I've noted all that. You can stop the calls any time by just saying so.", say: "Good.", tool: "record_consent", args: { daily_calls: true, preferred_time_local: "10:00", share_medicines: true, share_wellbeing: true, share_memories: false, notes: "Prefers late morning; keep personal stories private" } },
+  { agent: "I'll call you tomorrow at ten. Take care!", say: "Bye." },
+];
+
 let running = false;
 
-export async function playDemoCall(elder: Elder, opts: { scam?: boolean; emergency?: boolean; pauseMs?: number } = {}): Promise<{ callId: string }> {
+export async function playDemoCall(elder: Elder, opts: { scam?: boolean; emergency?: boolean; pauseMs?: number; kind?: "daily" | "consent" } = {}): Promise<{ callId: string }> {
   if (running) throw new Error("a demo call is already playing");
   running = true;
   const pause = opts.pauseMs ?? 2200;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const { call } = await callElder(elder, "daily");
+  const kind = opts.kind ?? (elder.status === "pending_consent" ? "consent" : "daily");
+  const primary = (await getRepo().listMembers(elder.familyId)).find((m) => m.role === "primary")?.name ?? "your family";
+  const { call } = await callElder(elder, kind);
   const conversationId = newId("conv_sim");
   call.conversationId = conversationId;
   call.mode = "simulated";
@@ -47,7 +58,8 @@ export async function playDemoCall(elder: Elder, opts: { scam?: boolean; emergen
     const transcript: { role: string; message: string }[] = [];
     try {
       await sleep(1800);
-      for (const step of SCRIPT(opts.scam ?? true, opts.emergency ?? false)) {
+      const steps = kind === "consent" ? CONSENT_SCRIPT(elder, primary) : SCRIPT(opts.scam ?? true, opts.emergency ?? false);
+      for (const step of steps) {
         if (step.agent) {
           transcript.push({ role: "agent", message: step.agent });
           emit("tool.called", elder.familyId, { tool: "speech", tier: "T0", label: `🗣️ KaiseHo: “${step.agent}”`, speech: "agent" }, elder.elderId);
@@ -70,7 +82,7 @@ export async function playDemoCall(elder: Elder, opts: { scam?: boolean; emergen
           transcript: transcript,
           metadata: { call_duration_secs: 148 },
           analysis: { transcript_summary: "Simulated demo call", evaluation_criteria_results: { disclosed_ai: { result: "success" }, no_medical_advice: { result: "success" }, no_sensitive_numbers: { result: "success" }, asked_all_meds: { result: "success" } } },
-          conversation_initiation_client_data: { dynamic_variables: { elder_id: elder.elderId, call_id: call.callId } },
+          conversation_initiation_client_data: { dynamic_variables: { elder_id: elder.elderId, call_id: call.callId, call_reason: kind } },
         },
       });
     } catch (err) {

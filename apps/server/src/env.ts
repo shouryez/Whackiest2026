@@ -22,6 +22,13 @@ const EnvSchema = z.object({
   ELEVENLABS_API_BASE: z.string().default("https://api.elevenlabs.io"),
 
   ELEVENLABS_BRIEFING_AGENT_ID: z.string().optional(),
+  ELEVENLABS_DIGEST_VOICE_ID: z.string().optional(),
+  ELEVENLABS_TTS_MODEL: z.string().default("eleven_multilingual_v2"),
+  /** Local files (digest MP3s) until S3 in Phase 4. */
+  DATA_DIR: z.string().default(".data"),
+  /** Weekly digest time (elder's local time). */
+  DIGEST_DAY: z.coerce.number().int().min(0).max(6).default(0),
+  DIGEST_TIME: z.string().default("20:00"),
 
   /** LLM for the post-call insight pass, starters and scam layer 2. "none" = deterministic rules only. */
   LLM_PROVIDER: z.enum(["none", "anthropic", "bedrock", "openai"]).default("none"),

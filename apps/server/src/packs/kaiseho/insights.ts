@@ -4,6 +4,7 @@ import { redactPII } from "../../control/redact";
 import { llmJson } from "../../engine/llm";
 import { localDate } from "../../engine/ids";
 import { getRepo } from "../../repo";
+import { pr } from "./pronouns";
 
 /**
  * Post-call insight pass (plan.md Section 14.1). Tool logs are the source of truth for
@@ -63,6 +64,7 @@ const NATIVE = {
 
 export function rulesInsight(elder: Elder, facts: CallFacts): Insight {
   const n = elder.preferredName;
+  const p = pr(elder);
   const s: string[] = [];
   const highlights: string[] = [];
   const flags: Insight["flags"] = [];
@@ -70,19 +72,19 @@ export function rulesInsight(elder: Elder, facts: CallFacts): Insight {
   if (facts.mood) s.push(`${n} sounded ${MOOD_WORDS[facts.mood]} today (mood ${facts.mood}/5)${facts.sleep ? ` and slept ${facts.sleep === "ok" ? "okay" : facts.sleep}` : ""}.`);
   const taken = facts.meds.filter((m) => m.status === "taken");
   const missed = facts.meds.filter((m) => m.status === "missed");
-  if (taken.length) { s.push(`She took ${taken.map((m) => `${m.name} (${m.slot})`).join(", ")}.`); highlights.push(`Took ${taken.map((m) => m.name.split(" ")[0]).join(", ")} ✓`); }
-  if (missed.length) { s.push(`She missed ${missed.map((m) => `${m.name} (${m.slot})`).join(", ")}.`); flags.push({ type: "missed_meds", severity: "watch", evidence: missed.map((m) => m.name).join(", ") }); }
+  if (taken.length) { s.push(`${p.She} took ${taken.map((m) => `${m.name} (${m.slot})`).join(", ")}.`); highlights.push(`Took ${taken.map((m) => m.name.split(" ")[0]).join(", ")} ✓`); }
+  if (missed.length) { s.push(`${p.She} missed ${missed.map((m) => `${m.name} (${m.slot})`).join(", ")}.`); flags.push({ type: "missed_meds", severity: "watch", evidence: missed.map((m) => m.name).join(", ") }); }
   if (facts.pain) {
     s.push(`${facts.pain.where[0].toUpperCase() + facts.pain.where.slice(1)} pain ${facts.pain.level}/10.`);
     highlights.push(`${facts.pain.where} pain ${facts.pain.level}/10`);
     if (facts.pain.level >= 7) flags.push({ type: "pain_up", severity: "watch", evidence: `${facts.pain.where} ${facts.pain.level}/10` });
   }
   if (facts.mood && facts.mood <= 2) flags.push({ type: "low_mood", severity: "watch", evidence: `mood ${facts.mood}/5` });
-  if (facts.scam) { s.push(`She mentioned a suspicious call (${facts.scam.pattern.replace("_", " ")}); KaiseHo told her it's a scam and alerted you. She has not sent money.`); highlights.push("Scam attempt blocked 🛡️"); flags.push({ type: "scam", severity: "urgent", evidence: facts.scam.pattern }); }
+  if (facts.scam) { s.push(`${p.She} mentioned a suspicious call (${facts.scam.pattern.replace("_", " ")}); KaiseHo said it's a scam and alerted you. No money was sent.`); highlights.push("Scam attempt blocked 🛡️"); flags.push({ type: "scam", severity: "urgent", evidence: facts.scam.pattern }); }
   if (facts.emergency) { s.push(`Emergency raised during the call: ${facts.emergency}.`); highlights.push("Emergency raised 🚑"); }
   for (const m of facts.savedMemories.slice(0, 2)) highlights.push(m.length > 60 ? m.slice(0, 57) + "…" : m);
   if (facts.messagesDelivered.length) highlights.push("Heard your message ✉️");
-  if (facts.messagesFromElder.length) s.push(`She sent you a message: "${facts.messagesFromElder[0]}".`);
+  if (facts.messagesFromElder.length) s.push(`${p.She} sent you a message: "${facts.messagesFromElder[0]}".`);
   if (!s.length) s.push(`${n} picked up and the check-in was short.`);
 
   const L = NATIVE[elder.primaryLanguage] ?? NATIVE.en;

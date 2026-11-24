@@ -10,6 +10,7 @@ import { createAlert } from "./alerts";
 import { onNoAnswer } from "./calls";
 import { runInsightPass } from "./insights";
 import { computeNudge, logFamilyCall } from "./nudges";
+import { pr } from "./pronouns";
 
 /**
  * KaiseHo's post-call brain (plan.md Section 8.6 steps 2–10).
@@ -86,6 +87,16 @@ async function onTranscript(p: PostCallPayload): Promise<void> {
     }
   }
 
+  if (call.reason === "consent") {
+    const c = await repo.getLatestConsent(elder.elderId);
+    const p = pr(elder);
+    const shared = c ? [c.shareMedicines && "medicines", c.shareWellbeing && "mood & health", c.shareMemories && "memories"].filter(Boolean).join(", ") : "";
+    insight.family_summary_en = c
+      ? `${elder.preferredName} ${c.dailyCalls ? `agreed to a short daily check-in at ${c.preferredTime ?? elder.callTimeLocal}` : "said no to daily calls for now"}. ${p.She} ${elder.gender ? "is" : "are"} happy to share: ${shared || "only safety alerts"}.${!c.shareMemories ? ` ${p.She} asked to keep ${p.hers} personal stories private.` : ""} Safety alerts (scams, emergencies) always reach you; ${p.she} ${elder.gender ? "knows" : "know"} that.`
+      : `${elder.preferredName} picked up the welcome call but hasn't given consent yet. No daily calls are scheduled.`;
+    insight.highlights = c ? ["Consent recorded 🤝", c.dailyCalls ? `Daily at ${c.preferredTime ?? elder.callTimeLocal}` : "No daily calls"] : ["No consent yet"];
+    insight.flags = [];
+  }
   const ciNow = await repo.getCheckIn(elder.elderId, call.callId);
   call.status = "completed";
   call.endedAt = nowIso();

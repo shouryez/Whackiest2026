@@ -7,7 +7,7 @@ import { getRepo } from "../../../repo";
 import { markInProgress } from "../../../engine/calls";
 import { createAlert } from "../alerts";
 import { adviceFor } from "../scam/advice";
-import { scoreScamRules } from "../scam/rules";
+import { classifyScam } from "../scam/classifier";
 
 /**
  * Agent tools for /mcp/agent (plan.md Section 10.1). Phase 0 set:
@@ -157,8 +157,8 @@ export const check_scam: AgentTool<typeof checkScamShape> = {
     label: (a, r) => `🛡️ SCAM CHECK → ${String(r.verdict).replace("_", " ")} · ${String(r.pattern).replace("_", " ")} · ${r.score}`,
     run: async (a, { elder }) => {
       await ensureCall(elder.elderId, a.call_id);
-      const rules = scoreScamRules(a.description);
-      // Layer 2 (LLM classifier, 1.5 s timeout) arrives in Phase 3; rules-only for now.
+      // Layer 1 rules (< 1 ms) + layer 2 LLM classifier (1.5 s timeout, falls back to rules).
+      const rules = await classifyScam(a.description);
       const lang: Lang = elder.primaryLanguage;
       const advice = adviceFor(rules.pattern, lang);
       let familyAlerted = false;
@@ -172,7 +172,7 @@ export const check_scam: AgentTool<typeof checkScamShape> = {
           type: "scam",
           title: "Scam attempt blocked",
           body: `${elder.preferredName} told KaiseHo: "${story}"`,
-          data: { pattern: rules.pattern, score: rules.score, matched: rules.matched, channel: a.channel, callId: a.call_id },
+          data: { pattern: rules.pattern, score: rules.score, matched: rules.matched, layers: rules.layers, channel: a.channel, callId: a.call_id },
           telegramLines: [
             `Pattern: ${rules.pattern.replace("_", " ")} (score ${rules.score})`,
             `✅ KaiseHo told her it's a scam: don't send money, don't share numbers, hang up.`,

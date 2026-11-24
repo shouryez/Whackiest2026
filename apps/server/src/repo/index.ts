@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Consent, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import { MemoryRepo } from "./memoryRepo";
@@ -51,6 +51,8 @@ export interface Repo {
   putFamilyCall(f: FamilyCall): Promise<void>;
   listFamilyCalls(elderId: string, sinceIso?: string): Promise<FamilyCall[]>;
   putNudge(n: Nudge): Promise<void>;
+  putDigest(d: Digest): Promise<void>;
+  listDigests(elderId: string): Promise<Digest[]>;
   listNudges(elderId: string): Promise<Nudge[]>;
 
   // memories

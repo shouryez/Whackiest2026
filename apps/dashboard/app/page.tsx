@@ -2,6 +2,7 @@
 import { Activity, CalendarClock, ChevronRight, MessageSquareText, PhoneCall, PhoneOutgoing, Play, ShieldCheck, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { DigestCard } from "@/components/DigestCard";
 import { FamilyCallsCard, LiveCallChip, MoodPainChart, NudgeCard, SummaryBlock, TodayCard } from "@/components/cards";
 import { Avatar, Badge, Button, Card, CardHeader, Empty, Skeleton, cx } from "@/components/ui";
 import { post, type Overview } from "@/lib/api";
@@ -38,7 +39,8 @@ export default function OverviewPage() {
   const { data: starters } = useApi<{ starters: { starter: string; why: string }[] }>("/elders/eld_lakshmi/starters");
   const { bump } = useLive();
   const [busy, setBusy] = useState<string | null>(null);
-  const e = data?.elders[0];
+  const [pick, setPick] = useState<string | null>(null);
+  const e = data?.elders.find((x) => x.elder.elderId === pick) ?? data?.elders.find((x) => x.elder.status !== "pending_consent") ?? data?.elders[0];
 
   const act = async (key: string, path: string, body?: unknown) => {
     setBusy(key);
@@ -58,7 +60,7 @@ export default function OverviewPage() {
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" icon={Play} disabled={busy === "play"} onClick={() => act("play", "/demo/play-call", { scam: true })}>
+          <Button variant="secondary" icon={Play} disabled={busy === "play"} onClick={() => act("play", "/demo/play-call", { scam: true, elderId: e.elder.elderId })}>
             {busy === "play" ? "Calling…" : "Play demo call"}
           </Button>
           <Button icon={PhoneOutgoing} disabled={busy === "call"} onClick={() => act("call", `/elders/${e.elder.elderId}/call-now`)}>
@@ -67,9 +69,31 @@ export default function OverviewPage() {
         </div>
       </div>
 
+      {data.elders.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {data.elders.map((x) => (
+            <button key={x.elder.elderId} onClick={() => setPick(x.elder.elderId)}
+              className={cx("flex items-center gap-2 rounded-full py-1 pr-3.5 pl-1 text-sm font-semibold ring-1 transition", x.elder.elderId === e.elder.elderId ? "bg-forest text-white ring-forest" : "bg-paper ring-sand-deep hover:bg-sand/40")}>
+              <Avatar name={x.elder.name} ring={x.ring} size={26} />{x.elder.name} {x.elder.preferredName}
+              {x.elder.status === "pending_consent" && <Badge tone="saffron">awaiting consent</Badge>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {e.elder.status === "pending_consent" && (
+        <Card tone="saffron">
+          <div className="flex flex-wrap items-center gap-4">
+            <ShieldCheck className="size-8 text-forest" />
+            <div className="min-w-0 flex-1"><p className="font-bold">Waiting for {e.elder.preferredName}&apos;s consent</p><p className="text-sm text-muted">No daily calls are scheduled until {e.elder.preferredName} says yes in the welcome call.</p></div>
+            <Button icon={PhoneCall} onClick={() => act("welcome", `/elders/${e.elder.elderId}/welcome-call`)}>Make the welcome call</Button>
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-12">
         <div className="lg:col-span-4"><FamilyCallsCard stats={e.familyCalls} elderId={e.elder.elderId} /></div>
-        <div className="lg:col-span-8"><NudgeCard nudge={e.nudge} starters={starters?.starters} elderId={e.elder.elderId} name={e.elder.preferredName} /></div>
+        <div className="lg:col-span-8"><NudgeCard nudge={e.nudge} starters={e.elder.elderId === "eld_lakshmi" ? starters?.starters : []} elderId={e.elder.elderId} name={e.elder.preferredName} /></div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-12">
@@ -117,6 +141,8 @@ export default function OverviewPage() {
         </Card>
         <div className="lg:col-span-4"><ActivityFeed /></div>
       </div>
+
+      <DigestCard elderId={e.elder.elderId} name={e.elder.preferredName} />
     </div>
   );
 }

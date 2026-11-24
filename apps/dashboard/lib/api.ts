@@ -64,6 +64,7 @@ export interface Profile {
   elder: { elderId: string; name: string; preferredName: string; age?: number; city: string; phone: string; languages: string[]; primaryLanguage: string; callTimeLocal: string; status: string; pausedUntil?: string; conditions: string[] };
   meds: { medId: string; name: string; dose: string; slots: string[]; withFood?: string; stockCount?: number; addedBy: string }[];
   reminders: { reminderId: string; kind: string; text: string; whenUtc: string }[];
+  consent?: { recordedAt: string; dailyCalls: boolean; preferredTime?: string; shareMedicines: boolean; shareWellbeing: boolean; shareMemories: boolean } | null;
 }
 
 export type { Alert, CallSummary, LiveEvent, Memory, Message, Nudge };

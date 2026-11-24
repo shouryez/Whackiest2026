@@ -1,15 +1,14 @@
 "use client";
-import { Bell, FileText, HeartHandshake, LayoutDashboard, Lock, Menu, Plug, Radio, ShieldAlert, X } from "lucide-react";
+import { Bell, FileText, LayoutDashboard, Lock, Menu, Plug, Radio, ShieldAlert, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, ELDER_ID, post, type Alert, type Integrations } from "@/lib/api";
+import { api, post, type Alert, type Integrations } from "@/lib/api";
 import { useApi, useLive } from "@/lib/live";
 import { cx } from "./ui";
 
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: `/elder/${ELDER_ID}`, label: "Lakshmi Amma", icon: HeartHandshake },
   { href: "/live", label: "Live Ops", icon: Radio },
   { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/privacy", label: "Privacy & trust", icon: Lock },
@@ -36,10 +35,32 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const path = usePathname();
   const { data: alerts } = useApi<Alert[]>("/alerts");
   const open = (alerts ?? []).filter((a) => a.status === "open" && (a.severity === "urgent" || a.severity === "emergency")).length;
+  const { data: elders } = useApi<{ elderId: string; name: string; preferredName: string; status: string }[]>("/elders");
   return (
     <nav className="flex h-full flex-col gap-1 p-4">
       <div className="mb-6 px-2 pt-2"><Logo /></div>
-      {NAV.map(({ href, label, icon: Icon }) => {
+      {NAV.slice(0, 1).map(({ href, label, icon: Icon }) => (
+        <Link key={href} href={href} onClick={onNavigate} className={cx("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition", path === "/" ? "bg-forest text-white shadow-sm" : "text-muted hover:bg-sand/50 hover:text-ink")}>
+          <Icon className="size-[18px]" strokeWidth={2.2} /><span className="flex-1">{label}</span>
+        </Link>
+      ))}
+      <p className="mt-4 mb-1 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted/70">Family</p>
+      {(elders ?? []).map((e) => {
+        const href = `/elder/${e.elderId}`;
+        const active = path.startsWith(href);
+        return (
+          <Link key={e.elderId} href={href} onClick={onNavigate} className={cx("flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition", active ? "bg-forest text-white shadow-sm" : "text-muted hover:bg-sand/50 hover:text-ink")}>
+            <span className={cx("grid size-[22px] place-items-center rounded-full text-[11px] font-bold", active ? "bg-white/20" : "bg-gradient-to-br from-saffron to-rust text-white")}>{e.name[0]}</span>
+            <span className="flex-1 truncate">{e.name} {e.preferredName}</span>
+            {e.status === "pending_consent" && <span className="rounded-full bg-saffron-soft px-1.5 py-0.5 text-[9px] font-bold text-saffron-deep">CONSENT</span>}
+          </Link>
+        );
+      })}
+      <Link href="/onboard" onClick={onNavigate} className={cx("flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition", path === "/onboard" ? "bg-forest text-white" : "text-forest hover:bg-forest-soft")}>
+        <UserPlus className="size-[18px]" strokeWidth={2.2} /><span>Add a parent</span>
+      </Link>
+      <p className="mt-4 mb-1 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted/70">Operate</p>
+      {NAV.slice(1).map(({ href, label, icon: Icon }) => {
         const active = href === "/" ? path === "/" : path.startsWith(href);
         return (
           <Link key={href} href={href} onClick={onNavigate}
