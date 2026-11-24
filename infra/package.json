@@ -1,0 +1,27 @@
+{
+  "name": "@kaiseho/infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK stack for KaiseHo / Ek Call (ap-south-1)",
+  "scripts": {
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy --require-approval broadening",
+    "typecheck": "tsc --noEmit",
+    "secrets:push": "tsx scripts/push-secrets.ts",
+    "bootstrap": "cdk bootstrap"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.230.0",
+    "constructs": "^10.4.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1175.0",
+    "@types/aws-lambda": "^8.10.150",
+    "@types/node": "^22.0.0",
+    "aws-cdk": "^2.1149.0",
+    "esbuild": "^0.28.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

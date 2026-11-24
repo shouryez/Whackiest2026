@@ -24,6 +24,8 @@ const EnvSchema = z.object({
   ELEVENLABS_BRIEFING_AGENT_ID: z.string().optional(),
   ELEVENLABS_DIGEST_VOICE_ID: z.string().optional(),
   ELEVENLABS_TTS_MODEL: z.string().default("eleven_multilingual_v2"),
+  /** Digest MP3 via ElevenLabs TTS costs credits (~800 chars each). Off = browser voice on the dashboard. */
+  DIGEST_AUDIO: bool.default("false"),
   /** Local files (digest MP3s) until S3 in Phase 4. */
   DATA_DIR: z.string().default(".data"),
   /** Weekly digest time (elder's local time). */
@@ -42,6 +44,20 @@ const EnvSchema = z.object({
   TELEGRAM_WEBHOOK_SECRET: z.string().default("dev-telegram-secret"),
   /** Phase 0 shortcut: chat id that receives the primary child's alerts until /start linking exists (Phase 2). */
   TELEGRAM_DEMO_CHAT_ID: z.string().optional(),
+
+  // ---------- AWS (Phase 4) ----------
+  AWS_REGION: z.string().default("ap-south-1"),
+  /** Single DynamoDB table (see plan.md Section 11 · Phase 4 note). */
+  DDB_TABLE: z.string().default("kaiseho_main"),
+  /** Local testing only: point the SDK at dynalite / DynamoDB Local. */
+  DDB_ENDPOINT: z.string().optional(),
+  S3_BUCKET: z.string().optional(),
+  /** local = setTimeout timers (default); eventbridge = EventBridge Scheduler → Lambda job runner. */
+  SCHEDULER: z.enum(["local", "eventbridge"]).default("local"),
+  SCHEDULER_GROUP: z.string().default("kaiseho"),
+  SCHEDULER_ROLE_ARN: z.string().optional(),
+  JOB_RUNNER_LAMBDA_ARN: z.string().optional(),
+  BEDROCK_MODEL_ID: z.string().optional(),
 
   TRANSCRIPT_RETENTION_HOURS: z.coerce.number().default(24),
   RETRY_MINUTES: z.coerce.number().default(15),

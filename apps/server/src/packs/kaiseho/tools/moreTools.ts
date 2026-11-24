@@ -5,11 +5,10 @@ import { redactPII } from "../../../control/redact";
 import { emit } from "../../../engine/events";
 import { newId, nowIso } from "../../../engine/ids";
 import { escapeHtml, sendTelegram } from "../../../engine/notify/telegram";
-import { cancel, scheduleAt } from "../../../engine/scheduler";
+import { scheduleJob } from "../../../engine/jobs";
 import { env } from "../../../env";
 import { getRepo } from "../../../repo";
 import { createAlert } from "../alerts";
-import { callElder } from "../calls";
 import { buildContext } from "../context";
 import { raiseEmergency } from "../emergency";
 import { ensureCall, type AgentTool } from "./agentTools";
@@ -109,11 +108,7 @@ export const set_reminder: AgentTool<typeof reminderShape> = {
       if (when.getTime() < Date.now() - 60_000) throw new ToolRejected("that time has passed", "ask for a time later today or tomorrow");
       const reminder = { elderId: elder.elderId, reminderId: newId("rem"), kind: "reminder" as const, text: redactPII(a.text), whenUtc: when.toISOString(), status: "scheduled" as const, createdAt: nowIso() };
       await getRepo().putReminder(reminder);
-      scheduleAt(reminder.reminderId, when, async () => {
-        reminder.status = "done" as never;
-        await getRepo().putReminder({ ...reminder, status: "done" });
-        await callElder(elder, "reminder", { reminder_text: reminder.text });
-      });
+      await scheduleJob(reminder.reminderId, when, { type: "call", elderId: elder.elderId, reason: "reminder", extras: { reminder_text: reminder.text }, reminderId: reminder.reminderId });
       emit("call.scheduled", elder.familyId, { reason: "reminder", at: when.toISOString(), text: reminder.text }, elder.elderId);
       return { ok: true, when_spoken: spoken(when, elder.tz) };
     },
@@ -136,7 +131,7 @@ export const request_callback: AgentTool<typeof callbackShape> = {
       const when = a.at_local_iso ? localToUtc(a.at_local_iso, elder.tz) : new Date(Date.now() + (a.in_minutes ?? 60) * 60_000);
       const reminder = { elderId: elder.elderId, reminderId: newId("cb"), kind: "callback" as const, text: "callback", whenUtc: when.toISOString(), status: "scheduled" as const, createdAt: nowIso() };
       await getRepo().putReminder(reminder);
-      scheduleAt(reminder.reminderId, when, async () => { await callElder(elder, "callback"); });
+      await scheduleJob(reminder.reminderId, when, { type: "call", elderId: elder.elderId, reason: "callback", reminderId: reminder.reminderId });
       emit("call.scheduled", elder.familyId, { reason: "callback", at: when.toISOString() }, elder.elderId);
       return { ok: true, when_spoken: spoken(when, elder.tz) };
     },
@@ -248,4 +243,4 @@ export const PHASE1_TOOLS = {
   get_today_context, recall_memory, mark_message_delivered, set_reminder, request_callback,
   update_call_preferences, record_consent, raise_emergency,
 };
-export { cancel as cancelSchedule };
+

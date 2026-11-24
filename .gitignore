@@ -11,3 +11,5 @@ coverage/
 ~$*.pptx
 *.tsbuildinfo
 .data/
+cdk.out/
+cdk.context.json

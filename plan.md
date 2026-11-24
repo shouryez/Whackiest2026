@@ -648,7 +648,7 @@ Secrecy + urgency + authority + money = near-certain scam (score ≥ 0.9).
 
 ## 11. Data model
 
-DynamoDB, one table per entity (simple to reason about; prefix `kaiseho_`). `MemoryRepo` mirrors the same shapes. All timestamps ISO-8601 UTC; store `tz` on the elder (`Asia/Kolkata`).
+DynamoDB. *Phase 4 decision:* a **single table `kaiseho_main`** (pk/sk + one GSI) instead of one table per entity: fewer resources to deploy and one TTL for transcript purging. Key layout is documented in `apps/server/src/repo/dynamoRepo.ts`. `MemoryRepo` mirrors the same shapes and both pass the same contract tests. All timestamps ISO-8601 UTC; store `tz` on the elder (`Asia/Kolkata`).
 
 ```ts
 // packages/shared/src/types.ts (zod schemas generate these)

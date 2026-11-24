@@ -1,6 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
 import { env } from "../env";
+import { getBlob, putBlob } from "./storage";
 
 /**
  * ElevenLabs text-to-speech for the weekly audio digest (plan.md P1-8), same brand voice as
@@ -8,10 +7,8 @@ import { env } from "../env";
  * shape against the current TTS API reference.
  */
 export function ttsReady(): boolean {
-  return Boolean(env.ELEVENLABS_API_KEY && env.ELEVENLABS_DIGEST_VOICE_ID);
+  return Boolean(env.DIGEST_AUDIO && env.ELEVENLABS_API_KEY && env.ELEVENLABS_DIGEST_VOICE_ID);
 }
-
-const dir = () => resolve(env.DATA_DIR, "digests");
 
 export async function synthesize(text: string, fileId: string): Promise<{ file: string; bytes: number; voice: string } | null> {
   if (!ttsReady()) return null;
@@ -27,9 +24,8 @@ export async function synthesize(text: string, fileId: string): Promise<{ file: 
       return null;
     }
     const buf = Buffer.from(await res.arrayBuffer());
-    await mkdir(dir(), { recursive: true });
     const file = `${fileId.replace(/[^\w-]/g, "")}.mp3`;
-    await writeFile(join(dir(), file), buf);
+    await putBlob(`digests/${file}`, buf, "audio/mpeg");
     return { file, bytes: buf.length, voice: env.ELEVENLABS_DIGEST_VOICE_ID! };
   } catch (err) {
     console.warn("[tts]", (err as Error).message);
@@ -39,9 +35,5 @@ export async function synthesize(text: string, fileId: string): Promise<{ file: 
 
 export async function readAudio(file: string): Promise<Buffer | null> {
   if (!/^[\w-]+\.mp3$/.test(file)) return null;
-  try {
-    return await readFile(join(dir(), file));
-  } catch {
-    return null;
-  }
+  return getBlob(`digests/${file}`);
 }

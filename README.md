@@ -55,6 +55,9 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 | `pnpm seed` | Re-seed the demo family on a running server |
 | `pnpm ask-family` | Ask the family MCP door the demo questions (weekly summary, starters, add medicine, message) |
 | `pnpm tunnel` | Public HTTPS URL for ElevenLabs (cloudflared) |
+| `pnpm setup:elevenlabs` | Creates/updates both agents, MCP servers, webhook, phone assignment |
+| `pnpm setup:twilio` | Number, India geo-permissions, caller-ID verification, ElevenLabs import |
+| `pnpm --filter @kaiseho/infra run deploy` | AWS stack (ap-south-1). Then `secrets:push` |
 
 ### What's in the box
 **Dashboard** (http://localhost:3000):
@@ -86,7 +89,7 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 - [x] Phase 1: Call engine + post-call brain (live phone calls need ElevenLabs/Twilio keys)
 - [x] Phase 2: Family MCP door + full dashboard redesign
 - [x] Phase 3: emergency cascade + briefing agent, no-answer ladder, Live Ops, weekly audio digest, onboarding + consent call, Scam Shield LLM layer 2
-- [ ] Phase 4: AWS hardening
+- [x] Phase 4: AWS hardening: DynamoDB single table, EventBridge Scheduler → Lambda job runner, S3, Bedrock, Secrets Manager, EC2 + CloudFront, CloudWatch (see [docs/aws-runbook.md](docs/aws-runbook.md))
 
 ## Team SantaClaude
 | Member | USN |

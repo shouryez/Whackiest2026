@@ -10,6 +10,11 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1175.0",
+    "@aws-sdk/client-dynamodb": "^3.1175.0",
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "@aws-sdk/client-scheduler": "^3.1175.0",
+    "@aws-sdk/lib-dynamodb": "^3.1175.0",
     "@hono/node-server": "^1.19.9",
     "@kaiseho/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.2",
@@ -18,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "dynalite": "^4.0.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"

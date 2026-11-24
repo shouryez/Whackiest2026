@@ -1,0 +1,12 @@
+{
+  "app": "npx tsx bin/app.ts",
+  "context": {
+    "region": "ap-south-1",
+    "repositoryUrl": "https://github.com/shouryez/Whackiest2026",
+    "branch": "main",
+    "hosting": "ec2",
+    "githubConnectionArn": "",
+    "appRunnerRuntime": "NODEJS_22",
+    "dashboardOrigin": "*"
+  }
+}

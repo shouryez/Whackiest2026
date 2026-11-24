@@ -2,6 +2,7 @@ import type {
   Alert, Audit, Call, CheckIn, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
 } from "@kaiseho/shared";
 import { env } from "../env";
+import { DynamoRepo } from "./dynamoRepo";
 import { MemoryRepo } from "./memoryRepo";
 
 /**
@@ -81,12 +82,11 @@ export interface Repo {
 }
 
 let repo: Repo | undefined;
+/** Tests: swap the implementation. */
+export function setRepo(r: Repo): void { repo = r; }
 export function getRepo(): Repo {
   if (!repo) {
-    if (env.DATA_STORE === "dynamo") {
-      throw new Error("DynamoRepo arrives in Phase 4; use DATA_STORE=memory for now");
-    }
-    repo = new MemoryRepo();
+    repo = env.DATA_STORE === "dynamo" ? new DynamoRepo() : new MemoryRepo();
   }
   return repo;
 }

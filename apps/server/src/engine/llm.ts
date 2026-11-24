@@ -1,3 +1,4 @@
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { z } from "zod";
 import { env } from "../env";
 
@@ -9,7 +10,24 @@ import { env } from "../env";
  */
 export function llmEnabled(): boolean {
   if (env.LLM_PROVIDER === "anthropic") return Boolean(env.ANTHROPIC_API_KEY);
+  if (env.LLM_PROVIDER === "bedrock") return Boolean(env.BEDROCK_MODEL_ID);
   return false;
+}
+
+let bedrock: BedrockRuntimeClient | undefined;
+/** AWS Bedrock (Converse API): the model runs inside AWS, so call data stays in our cloud account. */
+async function callBedrock(system: string, user: string, timeoutMs: number): Promise<string> {
+  bedrock ??= new BedrockRuntimeClient({ region: env.AWS_REGION });
+  const r = await bedrock.send(
+    new ConverseCommand({
+      modelId: env.BEDROCK_MODEL_ID!,
+      system: [{ text: system }],
+      messages: [{ role: "user", content: [{ text: user }] }],
+      inferenceConfig: { maxTokens: 1500, temperature: 0.2 },
+    }),
+    { abortSignal: AbortSignal.timeout(timeoutMs) },
+  );
+  return (r.output?.message?.content ?? []).map((c) => ("text" in c ? c.text : "")).join("");
 }
 
 async function callAnthropic(system: string, user: string, timeoutMs: number): Promise<string> {
@@ -50,7 +68,8 @@ export async function llmJson<T>(opts: {
   const system = `${opts.system}\nReply with ONE JSON object only. No prose, no code fences.`;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const text = await callAnthropic(system, opts.user, opts.timeoutMs ?? 20000);
+      const call = env.LLM_PROVIDER === "bedrock" ? callBedrock : callAnthropic;
+      const text = await call(system, opts.user, opts.timeoutMs ?? 20000);
       const parsed = opts.schema.safeParse(extractJson(text));
       if (parsed.success) return parsed.data;
       console.warn("[llm] schema mismatch", parsed.error.issues.slice(0, 3));

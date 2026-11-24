@@ -3,7 +3,8 @@ import { env } from "../../env";
 import { startCall } from "../../engine/calls";
 import { emit } from "../../engine/events";
 import { localDate, nowIso } from "../../engine/ids";
-import { every, scheduleAt } from "../../engine/scheduler";
+import { every } from "../../engine/scheduler";
+import { scheduleJob } from "../../engine/jobs";
 import { getRepo } from "../../repo";
 import { createAlert } from "./alerts";
 import { buildContext } from "./context";
@@ -32,9 +33,7 @@ export async function onNoAnswer(elder: Elder, call: Call): Promise<void> {
 
   if (call.attempt < 2) {
     const when = new Date(Date.now() + env.RETRY_MINUTES * 60_000);
-    scheduleAt(`retry-${elder.elderId}`, when, async () => {
-      await callElder(elder, call.reason, {}, call.attempt + 1);
-    });
+    await scheduleJob(`retry-${elder.elderId}-${call.callId}`, when, { type: "call", elderId: elder.elderId, reason: call.reason, attempt: call.attempt + 1 });
     emit("call.scheduled", elder.familyId, { reason: call.reason, at: when.toISOString(), attempt: call.attempt + 1, retry: true }, elder.elderId);
     return;
   }

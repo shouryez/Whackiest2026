@@ -2,7 +2,7 @@ import { HELPLINES, type Alert, type Elder } from "@kaiseho/shared";
 import { env } from "../../env";
 import { elevenLabsReady, placeOutboundCall } from "../../engine/calls";
 import { emit } from "../../engine/events";
-import { scheduleAt } from "../../engine/scheduler";
+import { scheduleJob } from "../../engine/jobs";
 import { getRepo } from "../../repo";
 import { createAlert } from "./alerts";
 
@@ -39,6 +39,16 @@ export async function briefingCall(elder: Elder, alert: Alert, recipient: { name
   }
 }
 
+/** Job: re-send an emergency alert if nobody has acknowledged it yet. */
+export async function repeatEmergency(alertId: string, n: number): Promise<void> {
+  const repo = getRepo();
+  const a = await repo.getAlert(alertId);
+  if (!a || a.status !== "open") return;
+  const elder = await repo.getElder(a.elderId);
+  if (!elder) return;
+  await createAlert({ elder, severity: "emergency", type: "emergency", title: `Reminder ${n}/3: ${a.title}`, body: a.body, data: { ...a.data, repeatOf: a.alertId } });
+}
+
 export async function raiseEmergency(elder: Elder, kind: string, details: string, callId?: string) {
   const repo = getRepo();
   const members = await repo.listMembers(elder.familyId);
@@ -65,11 +75,7 @@ export async function raiseEmergency(elder: Elder, kind: string, details: string
 
   // Repeat the Telegram alert every 2 min until acknowledged (max 3).
   for (let i = 1; i <= 3; i++) {
-    scheduleAt(`emergency-repeat-${alert.alertId}-${i}`, new Date(Date.now() + i * 120_000), async () => {
-      const a = await repo.getAlert(alert.alertId);
-      if (!a || a.status !== "open") return;
-      await createAlert({ elder, severity: "emergency", type: "emergency", title: `Reminder ${i}/3: ${a.title}`, body: a.body, data: { ...a.data, repeatOf: a.alertId } });
-    });
+    await scheduleJob(`emrep-${alert.alertId}-${i}`, new Date(Date.now() + i * 120_000), { type: "emergency_repeat", alertId: alert.alertId, n: i });
   }
 
   const alerted = [primary?.name, ...members.filter((m) => m.role === "secondary").map((m) => m.name), mental ? undefined : neighbour?.name].filter(Boolean) as string[];

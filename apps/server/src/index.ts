@@ -16,6 +16,8 @@ import { DEMO, seedDemo } from "./packs/kaiseho/seed";
 import { getRepo } from "./repo";
 import { readAudio } from "./engine/tts";
 import { startDigestTicker } from "./packs/kaiseho/digest";
+import { initJobs } from "./packs/kaiseho/jobs";
+import { Job, runJob, scheduleJob } from "./engine/jobs";
 import { api } from "./routes/api";
 import { telegramRoutes } from "./routes/telegram";
 
@@ -70,6 +72,21 @@ app.post("/internal/calls/start", internalAuth, async (c) => {
   const { call, dynamicVariables } = await callElder(elder, b.reason, b.extras);
   return c.json({ ok: true, callId: call.callId, mode: call.mode, dynamicVariables });
 });
+// EventBridge Scheduler → job-runner Lambda → here.
+app.post("/internal/jobs/run", internalAuth, async (c) => {
+  const body = (await c.req.json()) as { job?: unknown };
+  const job = Job.parse(body.job ?? body);
+  await runJob(job);
+  return c.json({ ok: true, ran: job.type });
+});
+// Phase 4 acceptance: schedule a short test call N minutes from now through the real scheduler
+// (EventBridge → Lambda → /internal/jobs/run on AWS, a local timer otherwise).
+app.post("/internal/test/schedule-call", internalAuth, async (c) => {
+  const minutes = Math.min(60, Math.max(1, Number(c.req.query("minutes") ?? 2)));
+  const when = new Date(Date.now() + minutes * 60_000);
+  const backend = await scheduleJob(`test-call-${Date.now()}`, when, { type: "call", elderId: DEMO.elderId, reason: "quicktest" });
+  return c.json({ ok: true, backend, at: when.toISOString() });
+});
 app.post("/internal/demo/seed", internalAuth, async (c) => { await seedDemo({ resetEvents: true }); return c.json({ ok: true }); });
 app.post("/internal/telegram/set-webhook", internalAuth, async (c) =>
   c.json({ ok: await setTelegramWebhook(`${env.PUBLIC_BASE_URL}/webhooks/telegram/${env.TELEGRAM_WEBHOOK_SECRET}`) }));
@@ -93,8 +110,10 @@ app.onError((err, c) => {
 });
 
 // ---------- boot ----------
-if (env.DEMO_MODE) await seedDemo();
+// Seed only an empty store: on DynamoDB a restart must never wipe real history.
+if (env.DEMO_MODE && !(await repo.getFamily(DEMO.familyId))) await seedDemo();
 startPurgeJob();
+await initJobs();
 startDailyTicker();
 startDigestTicker();
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {
