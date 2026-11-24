@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runTool } from "../src/control/tiers";
 import { signElevenLabs, verifyElevenLabs } from "../src/engine/webhooks/verify";
 import { buildContext } from "../src/packs/kaiseho/context";
@@ -45,7 +45,10 @@ describe("context builder", () => {
 });
 
 describe("post-call pipeline", () => {
+  afterEach(() => { vi.useRealTimers(); });
   it("redacts and stores the transcript, summarises, purges after retention", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-24T08:30:00Z")); // 2 PM IST: the morning dose is due
     await agent("log_wellbeing", { mood: 2, sleep: "poor" });
     await agent("log_medication", { med_name: "Metformin 500 mg", slot: "morning", status: "missed" });
     await kaisehoPostCall.onTranscript({

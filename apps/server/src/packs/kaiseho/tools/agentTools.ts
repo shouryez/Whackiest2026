@@ -44,7 +44,7 @@ export const log_medication: AgentTool<typeof logMedicationShape> = {
   spec: {
     name: "log_medication",
     tier: "T1",
-    label: (a) => `💊 Logged ${a.med_name} (${a.slot}): ${a.status === "taken" ? "taken ✓" : a.status === "missed" ? "missed ✗" : "not sure ?"}`,
+    label: (a) => `💊 Logged ${a.med_name} (${a.slot}): ${a.status === "taken" ? "taken ✓" : a.status === "missed" ? "missed ✗" : a.note?.includes("not due yet") ? "not due yet ⏳" : "not sure ?"}`,
     run: async (a, { elder }) => {
       const repo = getRepo();
       await ensureCall(elder.elderId, a.call_id);
@@ -53,6 +53,11 @@ export const log_medication: AgentTool<typeof logMedicationShape> = {
       const med = meds.find((m) => m.medId === a.med_id) ?? meds.find((m) => name.includes(m.name.toLowerCase()) || m.name.toLowerCase().includes(name.split(" ")[0]));
       const date = localDate(elder.tz);
       const medId = med?.medId ?? `adhoc_${name.replace(/\W+/g, "_").slice(0, 20)}`;
+      // Guard: "not yet / about to take it" is not a missed dose. A slot that isn't due yet is logged as unsure.
+      const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: elder.tz, hour: "2-digit", hour12: false }).format(new Date()));
+      const DUE: Record<string, number> = { morning: 11, afternoon: 15, evening: 19, night: 22 };
+      const notDueYet = a.status === "missed" && hour < DUE[a.slot] && !(a.slot === "night" && hour < 5);
+      if (notDueYet) { a.status = "unsure"; a.note = [a.note, "not due yet at call time"].filter(Boolean).join("; "); }
       await repo.putMedLog({
         elderId: elder.elderId, sk: `${date}#${medId}#${a.slot}`, date, medId, medName: med ? `${med.name} ${med.dose}` : a.med_name,
         slot: a.slot, status: a.status, callId: a.call_id, note: a.note ? redactPII(a.note) : undefined, loggedAt: nowIso(),

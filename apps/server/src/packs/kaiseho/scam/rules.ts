@@ -31,7 +31,8 @@ const PATTERNS: Record<Exclude<ScamPattern, "none">, Signal[]> = {
   kyc_update: [
     ["kyc", 0.4], ["account blocked", 0.35], ["account will be blocked", 0.4], ["will be blocked", 0.3], ["pan link", 0.3],
     ["link your pan", 0.3], ["click the link", 0.35], ["click link", 0.35], ["update today", 0.25], ["sim will be blocked", 0.35],
-    ["केवाईसी", 0.4], ["खाता बंद", 0.35], ["ಕೆವೈಸಿ", 0.4], ["ಖಾತೆ ಬ್ಲಾಕ್", 0.35],
+    ["account block", 0.35], ["block ho jayega", 0.35], ["block ho jaega", 0.35], ["band ho jayega", 0.3], ["khata band", 0.35],
+    ["kyc update", 0.4], ["खाता बंद", 0.35], ["ब्लॉक हो जाएगा", 0.35], ["बंद हो जाएगा", 0.3], ["केवाईसी", 0.4], ["ಕೆವೈಸಿ", 0.4], ["ಖಾತೆ ಬ್ಲಾಕ್", 0.35],
   ],
   electricity_cut: [
     ["power cut tonight", 0.45], ["electricity will be cut", 0.45], ["electricity cut", 0.4], ["disconnected tonight", 0.4],
@@ -57,7 +58,8 @@ const PATTERNS: Record<Exclude<ScamPattern, "none">, Signal[]> = {
     ["share your screen", 0.4], ["share my screen", 0.4], ["screen sharing", 0.4], ["remote app", 0.35], ["install this app", 0.35], ["install an app", 0.35], ["download this app", 0.35],
   ],
   otp_request: [
-    ["otp", 0.35], ["tell the otp", 0.5], ["tell me the otp", 0.5], ["share the otp", 0.5], ["asked for otp", 0.5], ["otp batao", 0.5], ["share the code", 0.3], ["tell me the code", 0.35], ["ओटीपी बताओ", 0.5], ["ओटीपी बताइए", 0.5], ["ಒಟಿಪಿ ಹೇಳಿ", 0.5], ["pin", 0.15], ["code", 0.1],
+    ["otp", 0.35], ["otp maanga", 0.5], ["otp manga", 0.5], ["otp mang", 0.5], ["otp maang", 0.5], ["otp puchha", 0.5], ["otp pucha", 0.5],
+    ["ओटीपी मांगा", 0.5], ["ओटीपी माँगा", 0.5], ["OTP मांगा", 0.5], ["OTP माँगा", 0.5], ["otp मांगा", 0.5], ["otp माँगा", 0.5], ["ಒಟಿಪಿ ಕೇಳಿದರು", 0.5], ["tell the otp", 0.5], ["tell me the otp", 0.5], ["share the otp", 0.5], ["asked for otp", 0.5], ["otp batao", 0.5], ["share the code", 0.3], ["tell me the code", 0.35], ["ओटीपी बताओ", 0.5], ["ओटीपी बताइए", 0.5], ["ಒಟಿಪಿ ಹೇಳಿ", 0.5], ["pin", 0.15], ["code", 0.1],
     ["ओटीपी", 0.35], ["ಒಟಿಪಿ", 0.35],
   ],
   investment_scheme: [
@@ -67,11 +69,11 @@ const PATTERNS: Record<Exclude<ScamPattern, "none">, Signal[]> = {
 };
 
 const META: Record<"authority" | "secrecy" | "urgency" | "money", string[]> = {
-  authority: ["cbi", "police", "enforcement directorate", "ed officer", "customs", "rbi", "court", "officer", "government", "inspector",
+  authority: ["bank", "bank se", "rbi se", "बैंक", "आरबीआई", "cbi", "police", "enforcement directorate", "ed officer", "customs", "rbi", "court", "officer", "government", "inspector",
     "bank manager", "सीबीआई", "पुलिस", "अधिकारी", "ಪೊಲೀಸ್", "ಸಿಬಿಐ", "ಅಧಿಕಾರಿ"],
   secrecy: ["don't tell", "do not tell", "dont tell", "keep it secret", "secret", "mat batana", "mat batao", "किसी को मत", "किसी को नहीं",
     "ಯಾರಿಗೂ ಹೇಳ", "stay on the call", "stay on call", "stay on video", "don't hang up", "do not hang up"],
-  urgency: ["immediately", "right now", "today itself", "tonight", "urgent", "urgently", "within an hour", "within 1 hour", "jaldi",
+  urgency: ["block ho jayega", "band ho jayega", "abhi", "jaldi", "immediately", "right now", "today itself", "tonight", "urgent", "urgently", "within an hour", "within 1 hour", "jaldi",
     "turant", "तुरंत", "अभी", "जल्दी", "ಈಗಲೇ", "ತಕ್ಷಣ", "arrest"],
   money: ["money", "transfer", "payment", "pay", "fee", "deposit", "rupees", "lakh", "lakhs", "upi", "paise", "paisa", "पैसे", "पैसा",
     "रुपये", "ಹಣ", "ರುಪಾಯಿ", "otp", "account number", "bank details"],
@@ -128,6 +130,11 @@ export function scoreScamRules(description: string): RuleResult {
   const meta = (Object.keys(META_COMPILED) as (keyof typeof META)[]).filter((m) => META_COMPILED[m].some((s) => s.test(text)));
   let score = best.score;
   if (meta.length >= 3) score = Math.max(score, 0.9 + 0.03 * (meta.length - 3));
+  // Anyone claiming authority (bank, RBI, police) who asks for an OTP is a scam, full stop.
+  if (meta.includes("authority") && (best.pattern === "otp_request" || COMPILED.otp_request.some((s) => s.w >= 0.35 && s.test(text)))) {
+    score = Math.max(score, 0.8);
+    if (best.pattern === "none" || best.score < 0.5) best = { ...best, pattern: "otp_request" };
+  }
   else if (meta.length === 2 && best.score > 0) score = score + 0.15;
   // Second-hand mentions ("I saw a news story about digital arrest scams") are not an attempt on her.
   const hearsay = HEARSAY.some((h) => h(text));

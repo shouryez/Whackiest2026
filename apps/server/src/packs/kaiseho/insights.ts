@@ -29,6 +29,7 @@ export interface CallFacts {
   mood?: number; sleep?: string; pain?: { where: string; level: number };
   meds: { name: string; slot: string; status: string }[];
   scam?: { pattern: string; score: number };
+  possibleScam?: string;
   emergency?: string;
   savedMemories: string[];
   messagesDelivered: string[];
@@ -42,11 +43,13 @@ export async function gatherFacts(elder: Elder, call: Call): Promise<CallFacts> 
   const audit = (await repo.listAudit(elder.elderId)).filter((a) => a.callId === call.callId && a.ok);
   const alerts = (await repo.listAlerts(elder.familyId)).filter((a) => (a.data as { callId?: string }).callId === call.callId);
   const scamAlert = alerts.find((a) => a.type === "scam");
+  const scamCheck = audit.find((a) => a.tool === "check_scam");
   const emergency = alerts.find((a) => a.type === "emergency");
   return {
     mood: checkIn?.mood, sleep: checkIn?.sleep, pain: checkIn?.pain,
     meds: meds.map((m) => ({ name: m.medName, slot: m.slot, status: m.status })),
     scam: scamAlert ? { pattern: String((scamAlert.data as { pattern?: string }).pattern ?? "scam"), score: Number((scamAlert.data as { score?: number }).score ?? 0) } : undefined,
+    possibleScam: !scamAlert && scamCheck ? scamCheck.resultSummary : undefined,
     emergency: emergency?.title,
     savedMemories: audit.filter((a) => a.tool === "save_memory" && !(a.argsRedacted as { private?: boolean }).private).map((a) => String((a.argsRedacted as { text?: string }).text ?? "")),
     messagesDelivered: audit.filter((a) => a.tool === "mark_message_delivered").map((a) => a.resultSummary),
@@ -81,6 +84,7 @@ export function rulesInsight(elder: Elder, facts: CallFacts): Insight {
   }
   if (facts.mood && facts.mood <= 2) flags.push({ type: "low_mood", severity: "watch", evidence: `mood ${facts.mood}/5` });
   if (facts.scam) { s.push(`${p.She} mentioned a suspicious call (${facts.scam.pattern.replace("_", " ")}); KaiseHo said it's a scam and alerted you. No money was sent.`); highlights.push("Scam attempt blocked 🛡️"); flags.push({ type: "scam", severity: "urgent", evidence: facts.scam.pattern }); }
+  if (!facts.scam && facts.possibleScam) { s.push(`${p.She} mentioned a suspicious call; KaiseHo checked it and gave safety advice (${facts.possibleScam.replace(/^\S+\s/, "")}).`); highlights.push("Suspicious call checked 🛡️"); }
   if (facts.emergency) { s.push(`Emergency raised during the call: ${facts.emergency}.`); highlights.push("Emergency raised 🚑"); }
   for (const m of facts.savedMemories.slice(0, 2)) highlights.push(m.length > 60 ? m.slice(0, 57) + "…" : m);
   if (facts.messagesDelivered.length) highlights.push("Heard your message ✉️");
