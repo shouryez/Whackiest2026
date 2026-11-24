@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+.next/
+.turbo/
+coverage/
+*.log
+.DS_Store
+~$*.pptx
+.claude/settings.local.json

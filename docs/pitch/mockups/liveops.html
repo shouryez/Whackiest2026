@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}body{width:1400px;height:700px;background:#0B0E24;color:#E8EAF6;font-family:'Segoe UI',Arial,sans-serif;padding:22px 26px;overflow:hidden}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.brand{font-size:26px;font-weight:800;letter-spacing:.5px}.brand span{color:#FD9B36}
+.pill{background:#1c2148;border:1px solid #2e3570;padding:6px 14px;border-radius:20px;font-size:14px;margin-left:8px;color:#b9bfe8}
+.live{background:#3b0d12;border-color:#ff4d5e;color:#ff8a95}
+.grid{display:grid;grid-template-columns:330px 1fr 360px;gap:18px;height:565px}
+.panel{background:#121637;border:1px solid #262c5e;border-radius:16px;padding:18px}
+h3{font-size:13px;letter-spacing:2px;color:#8c93c9;margin-bottom:14px}
+.orb{width:200px;height:200px;border-radius:50%;margin:16px auto;background:radial-gradient(circle,#ff6b6b 0%,#c2410c 45%,#3b0d12 75%);box-shadow:0 0 60px #ff4d5e88,0 0 0 18px #ff4d5e22,0 0 0 36px #ff4d5e11;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px}
+.wave{display:flex;gap:5px;justify-content:center;align-items:center;height:60px;margin:18px 0}.wave i{width:7px;background:#FD9B36;border-radius:4px}
+.kv{font-size:15px;line-height:1.9;color:#c9cdf0}.kv b{color:#fff}
+.card{border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.t0{background:#1d2245;color:#c5c9e8}.t1{background:#13285e;color:#cfe0ff}.t2{background:#4a3410;color:#ffe2b5}.t3{background:#5a0f17;color:#ffd0d5;box-shadow:0 0 24px #ff4d5e66;border:1px solid #ff4d5e}
+.tag{font-size:11px;font-weight:800;padding:3px 8px;border-radius:8px;background:#ffffff22;white-space:nowrap}
+.time{font-size:12px;opacity:.7;margin-right:10px}
+.fan{background:#1a1f45;border-radius:12px;padding:12px;margin-bottom:10px;font-size:15px}
+.ok{color:#6ee7a0;font-weight:700}.warn{color:#FD9B36;font-weight:700}
+.ticker{margin-top:14px;font-size:14px;color:#8c93c9;text-align:center;letter-spacing:.5px}
+</style></head><body>
+<div class="top"><div class="brand">Ek Call · <span>KaiseHo</span> Live Ops</div><div><span class="pill live">● LIVE CALL</span><span class="pill">MCP /mcp/agent ✓</span><span class="pill">Telegram ✓</span><span class="pill">Data: ap-south-1</span></div></div>
+<div class="grid">
+<div class="panel"><h3>CALL STATUS</h3><div class="orb">LIVE 01:24</div>
+<div class="wave"><i style="height:18px"></i><i style="height:40px"></i><i style="height:28px"></i><i style="height:55px"></i><i style="height:34px"></i><i style="height:48px"></i><i style="height:22px"></i><i style="height:44px"></i><i style="height:30px"></i><i style="height:52px"></i><i style="height:20px"></i><i style="height:38px"></i></div>
+<div class="kv">Elder: <b>Lakshmi Amma, 68</b><br>Phone: <b>+91 98xxx xx210</b><br>Language: <b>Kannada · Hindi</b><br>Reason: <b>daily check-in</b><br>Agent: <b>kaiseho-caller</b></div></div>
+<div class="panel"><h3>TOOL-CALL TIMELINE (REAL TIME)</h3>
+<div class="card t0"><span><span class="time">09:00:04</span>📞 Call connected · AI disclosed in first line</span><span class="tag">T0</span></div>
+<div class="card t1"><span><span class="time">09:00:21</span>🙂 Logged wellbeing: mood 4/5 · slept well</span><span class="tag">T1 LOG</span></div>
+<div class="card t1"><span><span class="time">09:00:38</span>💊 Logged Metformin 500 mg (morning): taken ✓</span><span class="tag">T1 LOG</span></div>
+<div class="card t1"><span><span class="time">09:00:52</span>🧠 Memory: knee pain better (3/10, was 6/10)</span><span class="tag">T1 LOG</span></div>
+<div class="card t1"><span><span class="time">09:01:03</span>✉️ Delivered Ravi's message: "visiting Sunday"</span><span class="tag">T1 LOG</span></div>
+<div class="card t3"><span><span class="time">09:01:19</span>🛡️ SCAM CHECK → likely scam · digital arrest · 0.95</span><span class="tag">T3 SAFETY</span></div>
+<div class="card t2"><span><span class="time">09:01:20</span>📣 Urgent alert → Ravi (Telegram) + briefing call</span><span class="tag">T2 OUT</span></div>
+<div class="card t0"><span><span class="time">09:01:22</span>🔒 OTP mention redacted → [REDACTED:otp]</span><span class="tag">CONTROL</span></div>
+</div>
+<div class="panel"><h3>ALERT FAN-OUT</h3>
+<div class="fan">🚨 <b>URGENT · Scam attempt blocked</b><br><span style="font-size:13px;color:#aab">digital_arrest · score 0.95 · 1.2 s</span></div>
+<div class="fan">📱 Telegram → Ravi (son) <span class="ok">delivered ✓</span></div>
+<div class="fan">📱 Telegram → Priya (daughter) <span class="ok">delivered ✓</span></div>
+<div class="fan">📞 Briefing Agent → Ravi <span class="warn">ringing…</span></div>
+<div class="fan">✅ Acknowledged by Ravi <span class="ok">09:01:41</span></div>
+<div class="fan" style="background:#0f2a1c">Money tools: <b>none exist</b> · Audit: <b>8 events</b></div>
+</div></div>
+<div class="ticker">Approval lives in our server, not in the model · No money tools exist · Every action audited · No audio stored</div>
+</body></html>
