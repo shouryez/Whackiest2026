@@ -102,6 +102,7 @@ async function ensureVoice(): Promise<string> {
 }
 
 // ---------- 2. MCP servers ----------
+const staleMcp: string[] = [];
 async function ensureMcp(envKey: string, name: string, path: string, token: string): Promise<string> {
   await el("PATCH", "/v1/convai/settings", { can_use_mcp_servers: true }).catch(() => {});
   const config = {
@@ -113,13 +114,22 @@ async function ensureMcp(envKey: string, name: string, path: string, token: stri
     request_headers: { Authorization: `Bearer ${token}` },
   };
   if (env[envKey]) {
-    try {
-      await el("PATCH", `/v1/convai/mcp-servers/${env[envKey]}`, { config });
+    // ElevenLabs may accept a PATCH yet keep the old URL, so check what is actually stored.
+    const cur = await el<{ config?: { url?: string } }>("GET", `/v1/convai/mcp-servers/${env[envKey]}`).catch(() => null);
+    if (cur?.config?.url === config.url) {
+      console.log(`✓ MCP server "${name}" already at ${config.url}`);
+      return env[envKey];
+    }
+    await el("PATCH", `/v1/convai/mcp-servers/${env[envKey]}`, { config }).catch(() => null);
+    const after = await el<{ config?: { url?: string } }>("GET", `/v1/convai/mcp-servers/${env[envKey]}`).catch(() => null);
+    if (after?.config?.url === config.url) {
       console.log(`✓ MCP server "${name}" updated → ${config.url}`);
       return env[envKey];
-    } catch {
-      console.log(`  (couldn't update MCP server ${env[envKey]}; creating a new one)`);
     }
+    console.log(`  (URL change didn't stick on ${env[envKey]}; creating a fresh MCP server and re-linking the agent)`);
+    const old = env[envKey];
+    saveEnv(envKey, "");
+    staleMcp.push(old);
   }
   try {
     const r = await el<{ id: string }>("POST", "/v1/convai/mcp-servers", { config });
@@ -296,6 +306,8 @@ async function main() {
     conversation: { max_duration_seconds: 240 },
   });
 
+  // Agents now point at the fresh MCP servers: remove the stale ones.
+  for (const id of staleMcp) await el("DELETE", `/v1/convai/mcp-servers/${id}`).then(() => console.log(`✓ Removed stale MCP server ${id}`)).catch(() => {});
   await ensurePhone(callerId);
   const webhookOk = await ensureWebhook();
 
