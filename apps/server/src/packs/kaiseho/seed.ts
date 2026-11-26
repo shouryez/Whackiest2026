@@ -13,7 +13,7 @@ export const DEMO = {
   elderId: "eld_lakshmi",
 } as const;
 
-export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<void> {
+export async function seedDemo(opts: { resetEvents?: boolean; inLaws?: boolean } = {}): Promise<void> {
   const repo = getRepo();
   await repo.clearAll();
   resetRateLimits();
@@ -32,6 +32,8 @@ export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<vo
     callTimeLocal: "09:00", callDays: [0, 1, 2, 3, 4, 5, 6], conditions: ["hypertension", "type 2 diabetes", "knee arthritis"],
     status: "active", privacy: { shareMedicines: true, shareWellbeing: true, shareMemories: true }, createdAt,
     clinics: [{ clinicId: "clinic_rao", name: "Rao Clinic, Mysuru", doctor: "Dr. Rao", phone: process.env.DEMO_CLINIC_PHONE || "+910000000009" }],
+    // Retired school teacher: state pension through her bank; life certificate due every November (P2-9).
+    pension: { pensioner: true, kind: "state", disbursedBy: "Canara Bank, Mysuru" },
   };
   await repo.putElder(elder);
 
@@ -78,7 +80,39 @@ export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<vo
   const fcAt = (daysAgo: number, by: string, source: "button" | "elder_mentioned") => ({ familyId: DEMO.familyId, elderId: elder.elderId, id: `fc_seed_${daysAgo}_${by}`, by, source, at: `${addDays(today, -daysAgo)}T14:30:00Z` });
   for (const f of [fcAt(10, "Ravi", "button"), fcAt(4, "Ravi", "elder_mentioned"), fcAt(3, "Priya", "button"), fcAt(1, "Ravi", "button")]) await repo.putFamilyCall(f);
 
+  // Occasions (P2-10): grandson's birthday in 2 days, Amma's own birthday later this month.
+  const mmdd = (d: string) => d.slice(5);
+  await repo.putOccasion({ familyId: DEMO.familyId, occasionId: "occ_aarav_bday", elderId: elder.elderId, title: "Aarav's birthday", kind: "birthday", date: mmdd(addDays(today, 2)), person: "Aarav", relation: "grandson", createdBy: "family:mem_ravi", createdAt });
+  await repo.putOccasion({ familyId: DEMO.familyId, occasionId: "occ_amma_bday", elderId: elder.elderId, title: "Amma's birthday", kind: "birthday", date: mmdd(addDays(today, 19)), isElders: true, createdBy: "family:mem_ravi", createdAt });
+
   await repo.putMessage({ elderId: elder.elderId, messageId: "msg_ravi_sunday", direction: "to_elder", fromName: "Ravi", text: "I'll visit on Sunday", delivered: false, createdAt });
 
-  emit("demo.reset", DEMO.familyId, { seeded: true, days: 14 }, elder.elderId);
+  if (opts.inLaws) await seedInLaw(today, createdAt);
+  emit("demo.reset", DEMO.familyId, { seeded: true, days: 14, inLaws: Boolean(opts.inLaws) }, elder.elderId);
+}
+
+/**
+ * P2-12 multi-elder, multi-language: Ravi's mother-in-law on the same family account,
+ * in Hindi, in Lucknow, with her own call time and medicines. Optional (demo seed with inLaws=true).
+ */
+async function seedInLaw(today: string, createdAt: string): Promise<void> {
+  const repo = getRepo();
+  const e: Elder = {
+    elderId: "eld_nirmala", familyId: DEMO.familyId, name: "Nirmala", preferredName: "Mummy ji", gender: "female", age: 72,
+    languages: ["hi"], primaryLanguage: "hi", phone: "+910000000004", city: "Lucknow", lat: 26.8467, lon: 80.9462, tz: "Asia/Kolkata",
+    callTimeLocal: "07:30", callDays: [0, 1, 2, 3, 4, 5, 6], conditions: ["hypothyroidism"], status: "active",
+    privacy: { shareMedicines: true, shareWellbeing: true, shareMemories: false }, createdAt,
+  };
+  await repo.putElder(e);
+  await repo.putMedication({ elderId: e.elderId, medId: "med_thyroxine", name: "Thyroxine", dose: "50 mcg", slots: ["morning"], withFood: "before", startDate: "2026-01-01", stockCount: 40, refillThresholdDays: 5, active: true, addedBy: "family:mem_ravi" });
+  const moods = [4, 4, 3, 4, 4];
+  for (let i = 5; i >= 1; i--) {
+    const date = addDays(today, -i);
+    const callId = `call_${date.replace(/-/g, "")}_0730_n`;
+    const m = moods[5 - i];
+    await repo.putCall({ elderId: e.elderId, callId, reason: "daily", status: "completed", attempt: 1, startedAt: `${date}T02:00:00Z`, endedAt: `${date}T02:02:10Z`, durationSec: 130, familyMessagesSent: 0, mode: "live",
+      summary: { family_en: `Mummy ji sounded ${m >= 4 ? "good" : "okay"} (mood ${m}/5). She took Thyroxine before breakfast.`, family_native: `मम्मी जी आज ${m >= 4 ? "अच्छी" : "ठीक"} थीं। थायरॉक्सिन ✓`, highlights: ["Thyroxine taken ✓"], flags: [], mood: m, source: "rules" } });
+    await repo.putCheckIn({ elderId: e.elderId, callId, date, mood: m, sleep: "good", updatedAt: `${date}T02:03:00Z` });
+    await repo.putMedLog({ elderId: e.elderId, sk: `${date}#med_thyroxine#morning`, date, medId: "med_thyroxine", medName: "Thyroxine 50 mcg", slot: "morning", status: "taken", callId, loggedAt: `${date}T02:01:00Z` });
+  }
 }

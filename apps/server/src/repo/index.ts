@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Occasion, Reminder, Turn,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import { DynamoRepo } from "./dynamoRepo";
@@ -20,6 +20,8 @@ export interface Repo {
   putElder(e: Elder): Promise<void>;
   getElder(elderId: string): Promise<Elder | undefined>;
   listEldersByFamily(familyId: string): Promise<Elder[]>;
+  /** Every elder across families (schedulers; P2-12 multi-elder). */
+  listAllElders(): Promise<Elder[]>;
 
   // medicines
   putMedication(m: Medication): Promise<void>;
@@ -58,6 +60,9 @@ export interface Repo {
   getAppointment(elderId: string, appointmentId: string): Promise<Appointment | undefined>;
   listAppointments(elderId: string): Promise<Appointment[]>;
   listNudges(elderId: string): Promise<Nudge[]>;
+  putOccasion(o: Occasion): Promise<void>;
+  listOccasions(familyId: string): Promise<Occasion[]>;
+  deleteOccasion(familyId: string, occasionId: string): Promise<void>;
 
   // memories
   putMemory(m: Memory): Promise<void>;

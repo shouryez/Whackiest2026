@@ -17,6 +17,7 @@ export type Severity = z.infer<typeof Severity>;
 
 export const AlertType = z.enum([
   "scam", "emergency", "no_answer", "missed_meds", "low_mood", "refill", "pause", "message", "health_change", "appointment",
+  "pension", "occasion",
 ]);
 export type AlertType = z.infer<typeof AlertType>;
 
@@ -90,6 +91,8 @@ export interface Elder {
   consentId?: string;
   /** Clinics the family has added (for the clinic-calling agent). */
   clinics?: Clinic[];
+  /** Pension life certificate (Jeevan Pramaan), due every November (plan.md P2-9). */
+  pension?: PensionInfo;
   createdAt: string;
 }
 
@@ -194,6 +197,39 @@ export interface Reminder {
   text: string;
   whenUtc: string;
   status: "scheduled" | "done" | "cancelled";
+  createdAt: string;
+  /** "elder" (asked in a call) or "family:<memberId>". */
+  createdBy?: string;
+}
+
+export type LifeCertStatus = "pending" | "done" | "not_yet" | "needs_help";
+export interface PensionInfo {
+  pensioner: boolean;
+  /** Where the pension is credited, e.g. "SBI, Mysuru main branch" (never an account number). */
+  disbursedBy?: string;
+  kind?: "central" | "state" | "defence" | "epfo" | "bank" | "other";
+  /** Status for the current year's life certificate. */
+  lifeCert?: { year: number; status: LifeCertStatus; method?: string; updatedAt: string; askedOn?: string };
+}
+
+export type OccasionKind = "birthday" | "anniversary" | "festival" | "other";
+/** Family occasions (plan.md P2-10). Festivals come from festivals.json, not from this table. */
+export interface Occasion {
+  familyId: string;
+  occasionId: string;
+  /** The elder it matters to; undefined = every elder in the family. */
+  elderId?: string;
+  title: string; // "Aarav's birthday"
+  kind: OccasionKind;
+  /** "MM-DD" repeats every year; "YYYY-MM-DD" happens once. */
+  date: string;
+  person?: string; // "Aarav"
+  relation?: string; // "grandson"
+  /** True when the occasion is the elder's own (her birthday): KaiseHo wishes her, family is nudged. */
+  isElders?: boolean;
+  wishedYears?: number[];
+  familyToldYears?: number[];
+  createdBy: string;
   createdAt: string;
 }
 

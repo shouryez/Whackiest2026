@@ -5,13 +5,14 @@ import { useState } from "react";
 import { DigestCard } from "@/components/DigestCard";
 import { HealthCard } from "@/components/HealthCard";
 import { AppointmentsCard, PrescriptionCard } from "@/components/CareCards";
+import { OccasionsCard, PensionCard, ReadbackCard, RemindersCard } from "@/components/LifeCards";
 import { AdherenceChart, MoodPainChart, SummaryBlock, TodayCard } from "@/components/cards";
 import { Avatar, Badge, Button, Card, CardHeader, Empty, Skeleton, cx } from "@/components/ui";
 import { api, post, type Memory, type Message, type Profile, type TimelineCall, type TodayView, type TrendPoint } from "@/lib/api";
 import { MOOD_EMOJI, cap, clock, dayLabel, timeAgo } from "@/lib/format";
 import { useApi, useLive } from "@/lib/live";
 
-const SECTIONS = [["today", "Today"], ["health", "Health"], ["calls", "Calls"], ["trends", "Trends"], ["memories", "Memories"], ["messages", "Messages"], ["medicines", "Medicines"], ["schedule", "Schedule"]] as const;
+const SECTIONS = [["today", "Today"], ["health", "Health"], ["life", "Reminders"], ["calls", "Calls"], ["trends", "Trends"], ["memories", "Memories"], ["messages", "Messages"], ["medicines", "Medicines"], ["schedule", "Schedule"]] as const;
 const MEM_STYLE: Record<string, string> = { person: "bg-[#e9ebfb] text-navy", event: "bg-saffron-soft text-saffron-deep", health: "bg-danger-soft text-danger", preference: "bg-forest-soft text-forest", story: "bg-sand/60 text-muted", plan: "bg-[#e6f4f1] text-[#0f766e]" };
 
 function Transcript({ elderId, callId }: { elderId: string; callId: string }) {
@@ -245,6 +246,13 @@ export default function ElderPage() {
         </div>
       </div>
 
+      <div id="life" className="grid scroll-mt-24 gap-5 lg:grid-cols-2">
+        <RemindersCard elderId={id} name={e.preferredName} />
+        <OccasionsCard elderId={id} name={e.preferredName} />
+        <PensionCard elderId={id} name={e.preferredName} />
+        <ReadbackCard elderId={id} name={e.preferredName} />
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-2">
         <section id="messages" className="scroll-mt-24"><MessagesPanel elderId={id} /></section>
         <section id="medicines" className="scroll-mt-24"><MedicinesPanel elderId={id} profile={profile} reload={reloadProfile} /></section>
@@ -265,9 +273,7 @@ export default function ElderPage() {
               {e.status === "active" ? "Pause calls" : "Resume calls"}
             </Button>
           </div>
-          {profile.reminders.length > 0 && (
-            <ul className="mt-4 space-y-1.5 text-sm">{profile.reminders.map((r) => <li key={r.reminderId}>⏰ {r.kind === "callback" ? "Callback" : r.text} · {new Date(r.whenUtc).toLocaleString("en-IN", { hour: "numeric", minute: "2-digit", weekday: "short" })}</li>)}</ul>
-          )}
+          <p className="mt-3 text-xs text-muted">Reminder and callback calls are under <a href="#life" className="underline">Reminders</a>.</p>
         </Card>
       </section>
     </div>

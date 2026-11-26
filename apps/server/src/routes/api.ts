@@ -24,6 +24,11 @@ import { ttsReady } from "../engine/tts";
 import { DEMO, seedDemo } from "../packs/kaiseho/seed";
 import { filterForFamily, todayView } from "../packs/kaiseho/views";
 import { getRepo } from "../repo";
+import { ToolRejected } from "../control/tiers";
+import { cancelReminder, createReminder, localToUtc, upcomingReminders } from "../packs/kaiseho/reminders";
+import { addOccasion, upcomingOccasions } from "../packs/kaiseho/occasions";
+import { lifeCertStatus, logLifeCert } from "../packs/kaiseho/pension";
+import { sharedReadback } from "../packs/kaiseho/transparency";
 
 /** Dashboard REST API (plan.md Section 12.1). Family-scoped; every output via filterForFamily. */
 export const api = new Hono();
@@ -35,7 +40,11 @@ async function elderOr404(id: string) {
   if (!e || e.familyId !== DEMO.familyId) throw Object.assign(new Error("not found"), { status: 404 });
   return e;
 }
-api.onError((err, c) => c.json({ error: err.message }, ((err as { status?: number }).status ?? 500) as 404));
+api.onError((err, c) => {
+  const status = (err as { status?: number }).status ?? (err instanceof ToolRejected || err instanceof z.ZodError ? 400 : 500);
+  const msg = err instanceof z.ZodError ? err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") : err.message;
+  return c.json({ error: msg }, status as 400);
+});
 
 api.get("/health/integrations", (c) => c.json({
   elevenlabs: elevenLabsReady(), briefing: elevenLabsReady(env.ELEVENLABS_BRIEFING_AGENT_ID), telegram: telegramEnabled(),
@@ -212,6 +221,60 @@ api.put("/elders/:id/clinics", async (c) => {
   return c.json({ ok: true, clinics: e.clinics });
 });
 
+// ---------- reminders & callbacks (P2-11) ----------
+api.get("/elders/:id/reminders", async (c) => c.json({ reminders: await upcomingReminders(await elderOr404(c.req.param("id"))) }));
+api.post("/elders/:id/reminders", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ text: z.string().min(2).max(200), whenLocalIso: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/) }).parse(await c.req.json());
+  const r = await createReminder(e, { kind: "reminder", text: b.text, when: localToUtc(b.whenLocalIso, e.tz), createdBy: ACTOR });
+  emit("tool.called", e.familyId, { tool: "set_reminder_for_elder", tier: "T2", label: `⏰ Ravi set a reminder call ${r.whenSpoken}: "${r.text}"`, actor: ACTOR }, e.elderId);
+  return c.json({ ok: true, reminder: r });
+});
+api.post("/elders/:id/reminders/:rid/cancel", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  return c.json({ ok: true, reminder: await cancelReminder(e, c.req.param("rid"), ACTOR) });
+});
+
+// ---------- occasions (P2-10) ----------
+api.get("/elders/:id/occasions", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const saved = (await repo.listOccasions(e.familyId)).filter((o) => !o.elderId || o.elderId === e.elderId);
+  return c.json({ upcoming: await upcomingOccasions(e, Number(c.req.query("days") ?? 60)), saved });
+});
+api.post("/elders/:id/occasions", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({
+    title: z.string().min(2).max(80), date: z.string(), kind: z.enum(["birthday", "anniversary", "festival", "other"]),
+    person: z.string().max(40).optional(), relation: z.string().max(30).optional(), isElders: z.boolean().optional(),
+  }).parse(await c.req.json());
+  return c.json({ ok: true, occasion: await addOccasion(e.familyId, { ...b, elderId: e.elderId, createdBy: ACTOR }) });
+});
+api.delete("/elders/:id/occasions/:oid", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  await repo.deleteOccasion(e.familyId, c.req.param("oid"));
+  return c.json({ ok: true });
+});
+
+// ---------- pension life certificate (P2-9) ----------
+api.get("/elders/:id/pension", async (c) => c.json(lifeCertStatus(await elderOr404(c.req.param("id")))));
+api.put("/elders/:id/pension", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ pensioner: z.boolean(), disbursedBy: z.string().max(60).optional(), kind: z.enum(["central", "state", "defence", "epfo", "bank", "other"]).optional() }).parse(await c.req.json());
+  e.pension = { ...(e.pension ?? {}), ...b, disbursedBy: b.disbursedBy ? redactPII(b.disbursedBy) : undefined };
+  await repo.putElder(e);
+  return c.json({ ok: true, ...lifeCertStatus(e) });
+});
+api.post("/elders/:id/pension/life-cert", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ status: z.enum(["done", "not_yet", "needs_help"]), method: z.string().max(60).optional() }).parse(await c.req.json());
+  await logLifeCert(e, b.status, ACTOR, b.method);
+  emit("tool.called", e.familyId, { tool: "mark_life_certificate", tier: "T1", label: `🪪 Life certificate marked ${b.status.replace("_", " ")} by Ravi`, actor: ACTOR }, e.elderId);
+  return c.json({ ok: true, ...lifeCertStatus(e) });
+});
+
+// ---------- transparency (P2-13): what she hears when she asks "what did you tell Ravi?" ----------
+api.get("/elders/:id/shared-readback", async (c) => c.json(await sharedReadback(await elderOr404(c.req.param("id")), Number(c.req.query("days") ?? 3))));
+
 // ---------- weekly audio digest ----------
 api.get("/elders/:id/digests", async (c) => c.json((await repo.listDigests((await elderOr404(c.req.param("id"))).elderId)).slice(0, 6)));
 api.post("/elders/:id/digest", async (c) => c.json({ ok: true, digest: await buildDigest(await elderOr404(c.req.param("id"))), tts: ttsReady() }));
@@ -275,7 +338,11 @@ api.get("/live/stream", (c) =>
 // ---------- demo controls ----------
 const demo = new Hono();
 demo.use("*", async (c, next) => (env.DEMO_MODE ? next() : c.json({ error: "demo mode off" }, 403)));
-demo.post("/seed", async (c) => { await seedDemo({ resetEvents: true }); return c.json({ ok: true }); });
+demo.post("/seed", async (c) => {
+  const b = z.object({ inLaws: z.boolean().optional() }).parse(await c.req.json().catch(() => ({})));
+  await seedDemo({ resetEvents: true, inLaws: b.inLaws });
+  return c.json({ ok: true, inLaws: Boolean(b.inLaws) });
+});
 demo.post("/play-call", async (c) => {
   const b = z.object({ scam: z.boolean().default(true), emergency: z.boolean().default(false), pauseMs: z.number().int().min(200).max(6000).optional(), elderId: z.string().optional() }).parse(await c.req.json().catch(() => ({})));
   const e = await elderOr404(b.elderId ?? DEMO.elderId);

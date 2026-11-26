@@ -55,15 +55,15 @@ export function startDailyTicker(): void {
   if (!env.ENABLE_DAILY_CALLS) return;
   every("daily-ticker", 60_000, async () => {
     const repo = getRepo();
-    const family = await repo.getFamily("fam_lakshmi");
-    if (!family) return;
-    for (const elder of await repo.listEldersByFamily(family.familyId)) {
+    // Every elder in every family, each in their own timezone and at their own time (P2-12).
+    for (const elder of await repo.listAllElders()) {
       if (elder.status === "paused" && elder.pausedUntil && elder.pausedUntil <= localDate(elder.tz)) {
         elder.status = "active"; elder.pausedUntil = undefined; await repo.putElder(elder);
       }
       if (elder.status !== "active") continue;
       const now = new Intl.DateTimeFormat("en-GB", { timeZone: elder.tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
-      if (now !== elder.callTimeLocal || !elder.callDays.includes(new Date().getDay())) continue;
+      const dow = new Date(`${localDate(elder.tz)}T00:00:00Z`).getUTCDay();
+      if (now !== elder.callTimeLocal || !elder.callDays.includes(dow)) continue;
       const today = localDate(elder.tz);
       const already = (await repo.listCalls(elder.elderId)).some((c) => c.reason === "daily" && c.startedAt && localDate(elder.tz, new Date(c.startedAt)) === today);
       if (!already) await callElder(elder, "daily");

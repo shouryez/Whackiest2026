@@ -1,6 +1,7 @@
 "use client";
 import { Ban, Check, Database, EyeOff, FileText, Handshake, Lock, MapPin, Mic, ShieldCheck, Trash2, X } from "lucide-react";
 import { Badge, Button, Card, CardHeader, PageTitle, Skeleton, cx } from "@/components/ui";
+import { ReadbackCard } from "@/components/LifeCards";
 import { post, type Privacy } from "@/lib/api";
 import { useApi, useLive } from "@/lib/live";
 
@@ -58,6 +59,8 @@ export default function PrivacyPage() {
           <p className="mt-3 text-xs text-muted">Amma can ask “what did you tell Ravi?” and hear it read back.</p>
         </Card>
       </div>
+
+      <div className="mt-5"><ReadbackCard elderId="eld_lakshmi" name="Amma" /></div>
 
       <Card className="mt-5">
         <CardHeader icon={ShieldCheck} kicker="Enforced in the MCP server, not the prompt" title="Risk tiers: the LLM can be persuaded, the server can't" />

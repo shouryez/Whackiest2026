@@ -12,6 +12,10 @@ import { conversationStarters, familyCallStats } from "../nudges";
 import { todayView } from "../views";
 import { doctorBrief, drillScore, refills } from "../health";
 import { requestAppointment } from "../clinic";
+import { cancelReminder, createReminder, localToUtc, upcomingReminders } from "../reminders";
+import { addOccasion, upcomingOccasions } from "../occasions";
+import { lifeCertStatus, logLifeCert } from "../pension";
+import { sharedReadback } from "../transparency";
 
 /**
  * /mcp/family tools (plan.md Section 10.2): the child's door, used from Claude or any MCP client.
@@ -221,5 +225,57 @@ export const FAMILY_TOOLS = {
         return { ok: true };
       },
     },
+  }),
+  get_reminders: t({
+    description: "Upcoming reminder and callback calls (set by her in a call, or by family).",
+    shape: { elder_id },
+    spec: { name: "get_reminders", tier: "T0", label: () => "⏰ Family checked reminders", run: async (_a, { elder }) => ({ reminders: (await upcomingReminders(elder)).map((r) => ({ id: r.reminderId, kind: r.kind, text: r.text, when: r.whenSpoken, set_by: r.createdBy ?? "elder" })) }) },
+  }),
+  set_reminder_for_elder: t({
+    description: "Schedule a short reminder call for her, e.g. 'remind Amma at 6 PM to check her BP'. when_local_iso is her local time (YYYY-MM-DDTHH:MM).",
+    shape: { elder_id, text: z.string().min(2).max(200), when_local_iso: z.string() },
+    spec: {
+      name: "set_reminder_for_elder", tier: "T2", label: (a, r) => `⏰ Family set a reminder ${r.when}: "${a.text.slice(0, 50)}"`,
+      run: async (a, { elder, actor }) => {
+        const r = await createReminder(elder, { kind: "reminder", text: a.text, when: localToUtc(a.when_local_iso, elder.tz), createdBy: actor });
+        return { ok: true, reminder_id: r.reminderId, when: r.whenSpoken };
+      },
+    },
+  }),
+  cancel_reminder: t({
+    description: "Cancel an upcoming reminder or callback call (id from get_reminders).",
+    shape: { elder_id, reminder_id: z.string() },
+    spec: { name: "cancel_reminder", tier: "T2", label: (a) => `⏰ Reminder ${a.reminder_id} cancelled`, run: async (a, { elder, actor }) => ({ ok: true, status: (await cancelReminder(elder, a.reminder_id, actor)).status }) },
+  }),
+  get_occasions: t({
+    description: "Upcoming birthdays, anniversaries and festivals in the next N days (KaiseHo greets her and offers to send wishes).",
+    shape: { elder_id, days: z.number().int().min(1).max(366).optional() },
+    spec: { name: "get_occasions", tier: "T0", label: () => "🎂 Family checked occasions", run: async (a, { elder }) => ({ occasions: (await upcomingOccasions(elder, a.days ?? 30)).map((o) => ({ title: o.title, date: o.date, in_days: o.daysAway, kind: o.kind, source: o.source })) }) },
+  }),
+  add_occasion: t({
+    description: "Add a birthday/anniversary so KaiseHo mentions it and offers to relay her wishes. date: MM-DD (every year) or YYYY-MM-DD (once). Set is_elders=true for her own birthday.",
+    shape: { elder_id, title: z.string().min(2).max(80), date: z.string(), kind: z.enum(["birthday", "anniversary", "festival", "other"]), person: z.string().max(40).optional(), relation: z.string().max(30).optional(), is_elders: z.boolean().optional() },
+    spec: {
+      name: "add_occasion", tier: "T1", label: (a) => `🎂 Occasion added: ${a.title} (${a.date})`,
+      run: async (a, { elder, actor }) => {
+        const o = await addOccasion(elder.familyId, { elderId: elder.elderId, title: a.title, kind: a.kind, date: a.date, person: a.person, relation: a.relation, isElders: a.is_elders, createdBy: actor });
+        return { ok: true, occasion_id: o.occasionId };
+      },
+    },
+  }),
+  get_pension_status: t({
+    description: "Her yearly pension life certificate (Jeevan Pramaan): due date, status and a checklist.",
+    shape: { elder_id },
+    spec: { name: "get_pension_status", tier: "T0", label: () => "🪪 Family checked the life certificate", run: async (_a, { elder }) => { const s = lifeCertStatus(elder); return { pensioner: s.applicable, status: s.status, due: s.window.end, days_left: s.window.daysLeft, window_open: s.window.open, checklist: s.checklist }; } },
+  }),
+  mark_life_certificate: t({
+    description: "Record that her life certificate is done (or still pending / needs help) after the family helped.",
+    shape: { elder_id, status: z.enum(["done", "not_yet", "needs_help"]), method: z.string().max(60).optional() },
+    spec: { name: "mark_life_certificate", tier: "T1", label: (a) => `🪪 Life certificate marked: ${a.status}`, run: async (a, { elder, actor }) => ({ ok: true, pension: await logLifeCert(elder, a.status, actor, a.method) }) },
+  }),
+  get_what_she_hears: t({
+    description: "Transparency: exactly what KaiseHo reads back when she asks 'what did you tell Ravi?' (last summary, alerts, her messages, what stayed private).",
+    shape: { elder_id },
+    spec: { name: "get_what_she_hears", tier: "T0", label: () => "🪟 Family viewed the read-back", run: async (_a, { elder }) => sharedReadback(elder) },
   }),
 };

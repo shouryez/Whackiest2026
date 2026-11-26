@@ -103,6 +103,16 @@ describe.each(engines)("%s", (_name, make) => {
     expect((await repo.getElder(DEMO.elderId))?.clinics?.[0].doctor).toBe("Dr. Rao");
   });
 
+  it("occasions + the all-elders index (multi-elder schedulers) round-trip", async () => {
+    expect((await repo.listOccasions(DEMO.familyId)).map((o) => o.occasionId).sort()).toEqual(["occ_aarav_bday", "occ_amma_bday"]);
+    await repo.deleteOccasion(DEMO.familyId, "occ_amma_bday");
+    expect((await repo.listOccasions(DEMO.familyId)).map((o) => o.occasionId)).toEqual(["occ_aarav_bday"]);
+    const before = (await repo.listAllElders()).length;
+    await repo.putElder({ ...(await repo.getElder(DEMO.elderId))!, elderId: "eld_second", name: "Second" });
+    expect((await repo.listAllElders()).map((e) => e.elderId).sort()).toEqual([DEMO.elderId, "eld_second"]);
+    expect(before).toBe(1);
+  });
+
   it("privacy holds across engines: private memories never reach family views", async () => {
     const elder = (await repo.getElder(DEMO.elderId))!;
     const { memories, privateCount } = await filterForFamily(elder);
@@ -124,5 +134,7 @@ describe.each(engines)("%s", (_name, make) => {
     expect(await repo.listAlerts(DEMO.familyId)).toHaveLength(0);
     expect(await repo.listAudit(DEMO.elderId)).toHaveLength(0);
     expect(await repo.listAppointments(DEMO.elderId)).toHaveLength(0);
+    expect(await repo.listOccasions(DEMO.familyId)).toHaveLength(0);
+    expect((await repo.listAllElders()).filter((e) => e.familyId === DEMO.familyId)).toHaveLength(0);
   });
 });

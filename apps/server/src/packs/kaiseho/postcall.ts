@@ -12,6 +12,7 @@ import { runInsightPass } from "./insights";
 import { computeNudge, logFamilyCall } from "./nudges";
 import { pr } from "./pronouns";
 import { flagChanges } from "./health";
+import { occasionFamilyNudges } from "./occasions";
 
 /**
  * KaiseHo's post-call brain (plan.md Section 8.6 steps 2–10).
@@ -127,6 +128,7 @@ async function onTranscript(p: PostCallPayload): Promise<void> {
   }
   await computeNudge(elder);
   await flagChanges(elder);
+  await occasionFamilyNudges(elder).catch((err) => console.warn("[occasions]", (err as Error).message));
 }
 
 async function onInitiationFailure(p: PostCallPayload): Promise<void> {

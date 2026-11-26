@@ -32,7 +32,7 @@ const PATTERNS: Record<Exclude<ScamPattern, "none">, Signal[]> = {
     ["kyc", 0.4], ["account blocked", 0.35], ["account will be blocked", 0.4], ["will be blocked", 0.3], ["pan link", 0.3],
     ["link your pan", 0.3], ["click the link", 0.35], ["click link", 0.35], ["update today", 0.25], ["sim will be blocked", 0.35],
     ["account block", 0.35], ["block ho jayega", 0.35], ["block ho jaega", 0.35], ["band ho jayega", 0.3], ["khata band", 0.35],
-    ["kyc update", 0.4], ["खाता बंद", 0.35], ["ब्लॉक हो जाएगा", 0.35], ["बंद हो जाएगा", 0.3], ["केवाईसी", 0.4], ["ಕೆವೈಸಿ", 0.4], ["ಖಾತೆ ಬ್ಲಾಕ್", 0.35],
+    ["kyc update", 0.4], ["life certificate update", 0.4], ["update your life certificate", 0.4], ["pension will stop", 0.4], ["pension will be stopped", 0.4], ["pension band", 0.4], ["पेंशन बंद", 0.4], ["ಪಿಂಚಣಿ ನಿಲ್ಲ", 0.35], ["खाता बंद", 0.35], ["ब्लॉक हो जाएगा", 0.35], ["बंद हो जाएगा", 0.3], ["केवाईसी", 0.4], ["ಕೆವೈಸಿ", 0.4], ["ಖಾತೆ ಬ್ಲಾಕ್", 0.35],
   ],
   electricity_cut: [
     ["power cut tonight", 0.45], ["electricity will be cut", 0.45], ["electricity cut", 0.4], ["disconnected tonight", 0.4],

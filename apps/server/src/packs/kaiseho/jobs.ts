@@ -42,6 +42,5 @@ export async function initJobs(): Promise<void> {
     if (ev.type !== "schedule.updated" || !ev.elderId) return;
     void getRepo().getElder(ev.elderId).then((e) => e && syncSchedules(e)).catch((err) => console.error("[schedules]", err));
   });
-  const family = await getRepo().getFamily("fam_lakshmi");
-  if (family) for (const e of await getRepo().listEldersByFamily(family.familyId)) await syncSchedules(e).catch((err) => console.error("[schedules]", err));
+  for (const e of await getRepo().listAllElders()) await syncSchedules(e).catch((err) => console.error("[schedules]", err));
 }

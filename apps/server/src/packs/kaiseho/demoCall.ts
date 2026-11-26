@@ -6,6 +6,8 @@ import { getRepo } from "../../repo";
 import { callElder } from "./calls";
 import { kaisehoPostCall } from "./postcall";
 import { AGENT_TOOLS } from "./tools";
+import { occasionsNote } from "./occasions";
+import { pensionNote } from "./pension";
 
 /**
  * "Play demo call": a scripted check-in that drives the REAL tools, control layer and
@@ -14,7 +16,7 @@ import { AGENT_TOOLS } from "./tools";
  */
 type Step = { say: string; agent?: string; tool?: keyof typeof AGENT_TOOLS; args?: Record<string, unknown> };
 
-const SCRIPT = (withScam: boolean, withEmergency: boolean): Step[] => [
+const SCRIPT = (withScam: boolean, withEmergency: boolean, x: { wish?: string; pension?: boolean } = {}): Step[] => [
   { agent: "Namaskara Amma! I'm KaiseHo, Ravi's AI helper. How did you sleep?", say: "I slept well, beta. Feeling good today." , tool: "log_wellbeing", args: { mood: 4, sleep: "good" } },
   { agent: "Did you take your Metformin after breakfast?", say: "Yes, I took it after my idli.", tool: "log_medication", args: { med_name: "Metformin 500 mg", slot: "morning", status: "taken" } },
   { agent: "Last time your knee hurt after the temple stairs. Is it better now?", say: "Much better, maybe 3 out of 10.", tool: "log_wellbeing", args: { pain: { where: "knee", level: 3 } } },
@@ -27,9 +29,12 @@ const SCRIPT = (withScam: boolean, withEmergency: boolean): Step[] => [
   }] : []),
   ...(withEmergency ? [{ agent: "Are you feeling alright?", say: "My chest is paining and I feel dizzy.", tool: "raise_emergency" as const, args: { kind: "chest_pain", details: "My chest is paining and I feel dizzy" } }] : []),
   { agent: "Would you like me to tell Ravi anything?", say: "Tell him I miss him. Yes, send it.", tool: "send_family_message", args: { text: "I miss you, come soon", elder_consented: true } },
+  ...(x.wish ? [{ agent: "Aarav's birthday is coming up on Sunday! Would you like to send him a wish?", say: "Yes! Tell him: Happy birthday my dear Aarav, Ajji loves you. Study well and come see me.", tool: "relay_wish" as const, args: { occasion_id: x.wish, wish: "Happy birthday my dear Aarav, Ajji loves you. Study well and come see me.", elder_consented: true } }] : []),
+  ...(x.pension ? [{ agent: "One more thing, Amma: have you given your pension life certificate this year? It's due by the 30th.", say: "Not yet. I don't know how to do that face-scan thing on the phone.", tool: "log_life_certificate" as const, args: { status: "needs_help" } }] : []),
   { agent: "Anything else I can help with?", say: "Can you fix my appointment with Dr. Rao for Thursday morning? Yes, please call the clinic.", tool: "request_appointment", args: { preferred: "Thursday morning", reason: "knee follow-up", elder_consented: true } },
   { agent: "A quick safety quiz, Amma: if the 'bank' asks for the OTP on your phone, what do you do?", say: "I never tell anyone. I hang up.", tool: "log_scam_drill", args: { drill_id: "otp_bank", passed: true, answer: "never tell, hang up" } },
-  { agent: "I'll call you tomorrow at 9. Take care, Amma!", say: "Bye, beta." },
+  { agent: "That's right, Amma, well done!", say: "Accha, what all did you tell Ravi about me?", tool: "get_shared_with_family", args: { days: 3 } },
+  { agent: "I sent Ravi a short note after our last call, told him about the scam call you stopped, and passed on your messages. Your private things stay private. I'll call you tomorrow at 9. Take care, Amma!", say: "Good. Bye, beta." },
 ];
 
 const CONSENT_SCRIPT = (e: Elder, family: string): Step[] => [
@@ -60,7 +65,9 @@ export async function playDemoCall(elder: Elder, opts: { scam?: boolean; emergen
     const transcript: { role: string; message: string }[] = [];
     try {
       await sleep(1800);
-      const steps = kind === "consent" ? CONSENT_SCRIPT(elder, primary) : SCRIPT(opts.scam ?? true, opts.emergency ?? false);
+      const wish = (await occasionsNote(elder)).match(/\[id:(occ_[a-z0-9_]+)\]/)?.[1];
+      const pension = pensionNote(elder, primary) !== "none";
+      const steps = kind === "consent" ? CONSENT_SCRIPT(elder, primary) : SCRIPT(opts.scam ?? true, opts.emergency ?? false, { wish, pension });
       for (const step of steps) {
         if (step.agent) {
           transcript.push({ role: "agent", message: step.agent });

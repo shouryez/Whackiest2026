@@ -90,9 +90,8 @@ export function startDigestTicker(): void {
   if (!env.ENABLE_DAILY_CALLS) return;
   every("digest-ticker", 60_000, async () => {
     const repo = getRepo();
-    const family = await repo.getFamily("fam_lakshmi");
-    if (!family) return;
-    for (const elder of await repo.listEldersByFamily(family.familyId)) {
+    for (const elder of await repo.listAllElders()) {
+      if (elder.status === "pending_consent") continue;
       const now = new Date();
       const hm = new Intl.DateTimeFormat("en-GB", { timeZone: elder.tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(now);
       const dow = new Date(`${localDate(elder.tz)}T00:00:00Z`).getUTCDay();

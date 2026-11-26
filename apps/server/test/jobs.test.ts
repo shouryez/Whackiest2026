@@ -22,7 +22,9 @@ describe("scheduled jobs (local backend; EventBridge uses the same Job shapes)",
   });
 
   it("set_reminder schedules a job; running it places the reminder call once", async () => {
-    const r = JSON.parse((await tool("set_reminder", { text: "call the plumber", when_local_iso: "2099-01-01T18:00" })).content[0].text);
+    // Reminders are limited to 30 days ahead.
+    const when = `${new Date(Date.now() + 3 * 86400_000).toISOString().slice(0, 10)}T18:00`;
+    const r = JSON.parse((await tool("set_reminder", { text: "call the plumber", when_local_iso: when })).content[0].text);
     expect(r.ok).toBe(true);
     const rem = (await repo.listReminders(DEMO.elderId))[0];
     expect(pending()).toContain(rem.reminderId);

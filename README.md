@@ -63,15 +63,15 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 **Dashboard** (http://localhost:3000):
 - **Overview:** family-calls-this-week metric, nudge with conversation starters, latest check-in summary (English / ಕನ್ನಡ), today card, 14-day mood and pain chart, live activity.
 - **Live Ops** (`/live`): a projector view. Shows call status, the live conversation interleaved with MCP tool calls colour-coded by risk tier, alert fan-out, summary and nudge. Has demo controls: call now, play demo call, emergency, no answer, reset.
-- **Amma's page:** call timeline with summaries, quality checks and redacted transcripts (deleted after 24 h); mood/pain and adherence charts; memories; messages; medicines; schedule.
+- **Amma's page:** call timeline with summaries, quality checks and redacted transcripts (deleted after 24 h); mood/pain and adherence charts; memories; health (refills, doctor brief, appointments, prescription photo); reminders and callbacks; occasions; pension life certificate; "what she hears when she asks what you were told"; messages; medicines; schedule.
 - **Alerts:** shows severity routing; acknowledge from here.
 - **Privacy & trust:** her sharing choices, "what KaiseHo stored today", retention, risk tiers, delete everything.
 - **Audit log:** filterable.
 - **Connect:** Claude MCP URL/token and Telegram link codes.
 
 **Server:**
-- **`/mcp/agent`** (voice agent, 13 tools): `log_medication`, `log_wellbeing`, `save_memory`, `check_scam`, `send_family_message`, `get_today_context`, `recall_memory`, `mark_message_delivered`, `set_reminder`, `request_callback`, `update_call_preferences`, `record_consent`, `raise_emergency`
-- **`/mcp/family`** (Claude, 15 tools): weekly summary, trends, status, alerts + ack, conversation starters, audit log, call history, add/update/remove medication, leave a message, call now, set schedule. Try it with `pnpm ask-family`.
+- **`/mcp/agent`** (voice agent, 19 tools): `log_medication`, `log_wellbeing`, `save_memory`, `check_scam`, `send_family_message`, `get_today_context`, `recall_memory`, `mark_message_delivered`, `set_reminder`, `request_callback`, `update_call_preferences`, `record_consent`, `raise_emergency`, `log_scam_drill`, `request_appointment`, `get_shared_with_family`, `keep_private`, `log_life_certificate`, `relay_wish`
+- **`/mcp/family`** (Claude, 27 tools): weekly summary, trends, status, alerts + ack, conversation starters, audit log, call history, add/update/remove medication, leave a message, call now, set schedule, doctor brief, refills, book/get appointments, reminders (get/set/cancel), occasions (get/add), pension life certificate (status/mark), and "what she hears" (the read-back). Try it with `pnpm ask-family`.
 - **Call engine:** a context builder pushes dynamic variables (meds, follow-ups, messages, last summary, live weather). Outbound calls go through ElevenLabs + Twilio, with a labelled *simulated* mode when no keys are set. There is also a no-answer ladder and a local scheduler for reminders, callbacks, retries and daily calls.
 - **Post-call brain:** HMAC-verified webhook, then redacted transcript turns purged after 24 h, then the insight pass (LLM via `LLM_PROVIDER`, or deterministic rules), then memories, quality checks, flag alerts, and nudges + starters. When Amma mentions a family call, it counts toward the metric.
 - **Safety:** risk tiers T0–T3 enforced in code. The emergency cascade alerts all family, places briefing calls to the son and the neighbour, and repeats until acknowledged. Scam Shield, PII redaction (en/hi/kn), and an audit of every call.
@@ -91,6 +91,7 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 - [x] Phase 3: emergency cascade + briefing agent, no-answer ladder, Live Ops, weekly audio digest, onboarding + consent call, Scam Shield LLM layer 2
 - [x] Phase 4: AWS hardening: DynamoDB single table, EventBridge Scheduler → Lambda job runner, S3, Bedrock, Secrets Manager, EC2 + CloudFront, CloudWatch (see [docs/aws-runbook.md](docs/aws-runbook.md))
 - [x] Phase 5 (P2 polish): refill prediction, change detection ("worth discussing with her doctor"), printable doctor brief, weekly scam "vaccine" drills (+ `get_doctor_brief` / `get_refills` for Claude)
+- [x] Remaining P2 extras: "What did you tell Ravi?" read-back + "keep it private" (P2-13), pension life-certificate reminder with checklist (P2-9), occasions and relayed birthday wishes with a regional festival calendar (P2-10), family-visible reminder and callback calls (P2-11), multiple parents in different languages on one family (P2-12)
 - [x] Prescription photo → schedule (vision LLM + deterministic Indian Rx shorthand, family confirms every line, photo never stored) and the clinic-calling agent (third ElevenLabs agent, own `/mcp/clinic` door, books on the elder's consent, tells her in the next call)
 
 ## Team SantaClaude
@@ -100,4 +101,3 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 | Shreya Singh Chouhan | 1MS25CS187 |
 | Daksh Bhatt | 1MS25CI037 |
 | Devansh Jain | 1MS25CS050 |
-

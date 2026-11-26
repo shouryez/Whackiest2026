@@ -4,7 +4,7 @@ import {
   type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 import type {
-  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Occasion, Reminder, Turn,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import type { Repo } from "./index";
@@ -13,7 +13,8 @@ import type { Repo } from "./index";
  * DynamoDB implementation of Repo (Phase 4). Single-table design, region ap-south-1 (data in India).
  *
  *   pk                 sk                          gsi1pk               gsi1sk
- *   FAMILY#f           META | MEMBER#m
+ *   FAMILY#f           META | MEMBER#m | OCC#id
+ *   ELDERS             ELDER#e  (index of every elder, for schedulers)
  *   ELDER#e            META                        FAMILY#f             ELDER#e
  *   ELDER#e            MED#id | MEDLOG#date#med#slot | CHECKIN#call | CALL#call | MEM#id | MSG#id
  *                      AUDIT#ts#seq | CONSENT#ts | REM#id | FCALL#at#id | NUDGE#id | DIGEST#id
@@ -98,7 +99,17 @@ export class DynamoRepo implements Repo {
   async listMembers(familyId: string) { return this.byPrefix<Member>(`FAMILY#${familyId}`, "MEMBER#"); }
 
   // ---------- elders ----------
-  async putElder(e: Elder) { await this.put({ pk: `ELDER#${e.elderId}`, sk: "META", gsi1pk: `FAMILY#${e.familyId}`, gsi1sk: `ELDER#${e.elderId}`, _t: "elder" }, e); }
+  async putElder(e: Elder) {
+    await this.put({ pk: `ELDER#${e.elderId}`, sk: "META", gsi1pk: `FAMILY#${e.familyId}`, gsi1sk: `ELDER#${e.elderId}`, _t: "elder" }, e);
+    await this.put({ pk: "ELDERS", sk: `ELDER#${e.elderId}`, _t: "elder_index" }, { elderId: e.elderId, familyId: e.familyId });
+  }
+  async listAllElders() {
+    const ids = await this.byPrefix<{ elderId: string }>("ELDERS", "ELDER#");
+    return (await Promise.all(ids.map((x) => this.getElder(x.elderId)))).filter((e): e is Elder => Boolean(e));
+  }
+  async putOccasion(o: Occasion) { await this.put({ pk: `FAMILY#${o.familyId}`, sk: `OCC#${o.occasionId}`, _t: "occasion" }, o); }
+  async listOccasions(familyId: string) { return this.byPrefix<Occasion>(`FAMILY#${familyId}`, "OCC#"); }
+  async deleteOccasion(familyId: string, occasionId: string) { await this.deleteKeys([{ pk: `FAMILY#${familyId}`, sk: `OCC#${occasionId}` }]); }
   async getElder(id: string) { return this.get<Elder>(`ELDER#${id}`, "META"); }
   async listEldersByFamily(familyId: string) { return this.byGsi<Elder>(`FAMILY#${familyId}`, "ELDER#"); }
 
@@ -208,6 +219,7 @@ export class DynamoRepo implements Repo {
     for (const e of elders) {
       for (const c of await this.listCalls(e.elderId)) keys.push({ pk: `CALL#${c.callId}`, sk: "TURNS" });
       keys.push(...(await this.keysUnder(`ELDER#${e.elderId}`)));
+      keys.push({ pk: "ELDERS", sk: `ELDER#${e.elderId}` });
     }
     for (const a of await this.listAlerts(familyId)) keys.push({ pk: `ALERT#${a.alertId}`, sk: "META" });
     keys.push(...(await this.keysUnder(`FAMILY#${familyId}`)));

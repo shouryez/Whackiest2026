@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Occasion, Reminder, Turn,
 } from "@kaiseho/shared";
 import type { Repo } from "./index";
 
@@ -23,6 +23,7 @@ export class MemoryRepo implements Repo {
   private nudges = new Map<string, Nudge>();
   private digests: Digest[] = [];
   private appointments = new Map<string, Appointment>();
+  private occasions = new Map<string, Occasion>(); // familyId#occasionId
 
   async putFamily(f: Family) { this.families.set(f.familyId, f); }
   async getFamily(id: string) { return this.families.get(id); }
@@ -32,6 +33,7 @@ export class MemoryRepo implements Repo {
   async putElder(e: Elder) { this.elders.set(e.elderId, e); }
   async getElder(id: string) { return this.elders.get(id); }
   async listEldersByFamily(familyId: string) { return [...this.elders.values()].filter((e) => e.familyId === familyId); }
+  async listAllElders() { return [...this.elders.values()]; }
 
   async putMedication(m: Medication) { this.meds.set(`${m.elderId}#${m.medId}`, m); }
   async deleteMedication(elderId: string, medId: string) { this.meds.delete(`${elderId}#${medId}`); }
@@ -72,6 +74,9 @@ export class MemoryRepo implements Repo {
   async listFamilyCalls(elderId: string, since?: string) { return this.familyCalls.filter((f) => f.elderId === elderId && (!since || f.at >= since)); }
   async putNudge(n: Nudge) { this.nudges.set(n.nudgeId, n); }
   async putDigest(d: Digest) { this.digests = this.digests.filter((x) => x.digestId !== d.digestId); this.digests.push(d); }
+  async putOccasion(o: Occasion) { this.occasions.set(`${o.familyId}#${o.occasionId}`, o); }
+  async listOccasions(familyId: string) { return [...this.occasions.values()].filter((o) => o.familyId === familyId); }
+  async deleteOccasion(familyId: string, occasionId: string) { this.occasions.delete(`${familyId}#${occasionId}`); }
   async putAppointment(a: Appointment) { this.appointments.set(a.appointmentId, a); }
   async getAppointment(elderId: string, id: string) { const a = this.appointments.get(id); return a?.elderId === elderId ? a : undefined; }
   async listAppointments(elderId: string) { return [...this.appointments.values()].filter((a) => a.elderId === elderId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
@@ -114,6 +119,7 @@ export class MemoryRepo implements Repo {
     for (const [k, n] of this.nudges) if (elderIds.has(n.elderId)) this.nudges.delete(k);
     this.digests = this.digests.filter((d) => d.familyId !== familyId);
     for (const [k, a] of this.appointments) if (a.familyId === familyId) this.appointments.delete(k);
+    for (const [k, o] of this.occasions) if (o.familyId === familyId) this.occasions.delete(k);
     for (const [k, a] of this.alerts) if (a.familyId === familyId) this.alerts.delete(k);
     for (const [k, m] of this.members) if (m.familyId === familyId) this.members.delete(k);
     this.families.delete(familyId);
@@ -122,6 +128,6 @@ export class MemoryRepo implements Repo {
   async clearAll() {
     for (const m of [this.families, this.members, this.elders, this.meds, this.medLogs, this.checkIns, this.calls, this.memories, this.alerts, this.messages]) m.clear();
     this.audit = [];
-    this.turns.clear(); this.consents = []; this.reminders.clear(); this.familyCalls = []; this.nudges.clear(); this.digests = []; this.appointments.clear();
+    this.turns.clear(); this.consents = []; this.reminders.clear(); this.familyCalls = []; this.nudges.clear(); this.digests = []; this.appointments.clear(); this.occasions.clear();
   }
 }

@@ -5,7 +5,6 @@ import { redactPII } from "../../../control/redact";
 import { emit } from "../../../engine/events";
 import { newId, nowIso } from "../../../engine/ids";
 import { escapeHtml, sendTelegram } from "../../../engine/notify/telegram";
-import { scheduleJob } from "../../../engine/jobs";
 import { env } from "../../../env";
 import { getRepo } from "../../../repo";
 import { createAlert } from "../alerts";
@@ -13,27 +12,18 @@ import { buildContext } from "../context";
 import { raiseEmergency } from "../emergency";
 import { DRILLS } from "../health";
 import { requestAppointment } from "../clinic";
+import { createReminder, localToUtc } from "../reminders";
+import { keepPrivate, sharedReadback } from "../transparency";
+import { logLifeCert } from "../pension";
+import { relayWish } from "../occasions";
 import { ensureCall, type AgentTool } from "./agentTools";
 
 /** Phase 1 agent tools (plan.md Section 10.1). */
 const elder_id = z.string().describe("The elder_id from your instructions. Never say it aloud.");
 const call_id = z.string().describe("The call_id from your instructions.");
 
-// ---- time helpers (elder's local time ↔ UTC) ----
-function tzOffsetMinutes(tz: string, at: Date): number {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(at).map((p) => [p.type, p.value]));
-  const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
-  return Math.round((asUtc - at.getTime()) / 60000);
-}
-export function localToUtc(localIso: string, tz: string): Date {
-  const guess = new Date(`${localIso.slice(0, 19)}Z`);
-  if (Number.isNaN(guess.getTime())) throw new ToolRejected("could not understand the time", "ask for the time again, e.g. 6 PM today");
-  return new Date(guess.getTime() - tzOffsetMinutes(tz, guess) * 60000);
-}
-function spoken(d: Date, tz: string): string {
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d) === new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date()) ? "today" : new Intl.DateTimeFormat("en-IN", { timeZone: tz, weekday: "long" }).format(d);
-  return `${day} at ${new Intl.DateTimeFormat("en-IN", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(d)}`;
-}
+// Time helpers live in ../reminders (shared with the family's reminder tools).
+export { localToUtc };
 
 // ---------------- get_today_context (T0) ----------------
 const getTodayShape = { elder_id };
@@ -106,13 +96,8 @@ export const set_reminder: AgentTool<typeof reminderShape> = {
     name: "set_reminder", tier: "T2",
     label: (a, r) => `⏰ Reminder set ${r.when_spoken}: "${a.text}"`,
     run: async (a, { elder }) => {
-      const when = localToUtc(a.when_local_iso, elder.tz);
-      if (when.getTime() < Date.now() - 60_000) throw new ToolRejected("that time has passed", "ask for a time later today or tomorrow");
-      const reminder = { elderId: elder.elderId, reminderId: newId("rem"), kind: "reminder" as const, text: redactPII(a.text), whenUtc: when.toISOString(), status: "scheduled" as const, createdAt: nowIso() };
-      await getRepo().putReminder(reminder);
-      await scheduleJob(reminder.reminderId, when, { type: "call", elderId: elder.elderId, reason: "reminder", extras: { reminder_text: reminder.text }, reminderId: reminder.reminderId });
-      emit("call.scheduled", elder.familyId, { reason: "reminder", at: when.toISOString(), text: reminder.text }, elder.elderId);
-      return { ok: true, when_spoken: spoken(when, elder.tz) };
+      const r = await createReminder(elder, { kind: "reminder", text: a.text, when: localToUtc(a.when_local_iso, elder.tz), createdBy: "elder" });
+      return { ok: true, when_spoken: r.whenSpoken };
     },
   },
 };
@@ -131,11 +116,8 @@ export const request_callback: AgentTool<typeof callbackShape> = {
     label: (_a, r) => `🔁 Callback scheduled ${r.when_spoken}`,
     run: async (a, { elder }) => {
       const when = a.at_local_iso ? localToUtc(a.at_local_iso, elder.tz) : new Date(Date.now() + (a.in_minutes ?? 60) * 60_000);
-      const reminder = { elderId: elder.elderId, reminderId: newId("cb"), kind: "callback" as const, text: "callback", whenUtc: when.toISOString(), status: "scheduled" as const, createdAt: nowIso() };
-      await getRepo().putReminder(reminder);
-      await scheduleJob(reminder.reminderId, when, { type: "call", elderId: elder.elderId, reason: "callback", reminderId: reminder.reminderId });
-      emit("call.scheduled", elder.familyId, { reason: "callback", at: when.toISOString() }, elder.elderId);
-      return { ok: true, when_spoken: spoken(when, elder.tz) };
+      const r = await createReminder(elder, { kind: "callback", text: "callback", when, createdBy: "elder" });
+      return { ok: true, when_spoken: r.whenSpoken };
     },
   },
 };
@@ -290,8 +272,81 @@ export const request_appointment: AgentTool<typeof apptShape> = {
   },
 };
 
+
+// ---------------- get_shared_with_family (T0) — P2-13 "What did you tell Ravi?" ----------------
+const sharedShape = { elder_id, days: z.number().int().min(1).max(14).optional().describe("How far back, default 3 days") };
+export const get_shared_with_family: AgentTool<typeof sharedShape> = {
+  description: "She asks what you told her family ('What did you tell Ravi?', 'Ravi ko kya bataya?'). Returns exactly what the family saw; read the 'say' text back to her warmly in her language, without changing facts.",
+  shape: sharedShape,
+  spec: {
+    name: "get_shared_with_family", tier: "T0", maxResultChars: 1400,
+    label: (_a, r) => `🪟 Read back what family saw (${(r.alerts as unknown[]).length} alert${(r.alerts as unknown[]).length === 1 ? "" : "s"}, ${r.has_summary ? "1 summary" : "no summary"})`,
+    run: async (a, { elder }) => {
+      const r = await sharedReadback(elder, a.days ?? 3);
+      return { say: r.say, has_summary: Boolean(r.lastSummary), alerts: r.alerts.map((x) => x.title), private_kept: r.privateCount };
+    },
+  },
+};
+
+// ---------------- keep_private (T1) ----------------
+const keepPrivateShape = { elder_id, topic: z.string().min(2).max(100).describe("What she doesn't want shared, e.g. 'my knee' or 'the money I lent'") };
+export const keep_private: AgentTool<typeof keepPrivateShape> = {
+  description: "She says 'don't tell Ravi about X'. Marks it private from now on. Be honest: what was already sent can't be unsent, and scams/emergencies always go to family.",
+  shape: keepPrivateShape,
+  spec: {
+    name: "keep_private", tier: "T1",
+    label: (_a, r) => `🔒 Kept private from now on (${r.hidden} memor${r.hidden === 1 ? "y" : "ies"})`,
+    run: async (a, { elder }) => {
+      const { hidden } = await keepPrivate(elder, redactPII(a.topic));
+      await getRepo().putMemory({ elderId: elder.elderId, memoryId: newId("mem"), type: "preference", text: `Asked to keep private: ${redactPII(a.topic)}`, importance: 3, private: true, source: "tool", lastMentionedAt: nowIso(), createdAt: nowIso() });
+      return { ok: true, hidden, say: "From now on I won't share that. Anything I already sent stays sent, and scams or emergencies always go to your family." };
+    },
+  },
+};
+
+// ---------------- log_life_certificate (T1) — P2-9 ----------------
+const lifeCertShape = {
+  elder_id, call_id,
+  status: z.enum(["done", "not_yet", "needs_help"]),
+  method: z.string().max(60).optional().describe("How she did it, e.g. 'at the bank', 'face app', 'doorstep'"),
+};
+export const log_life_certificate: AgentTool<typeof lifeCertShape> = {
+  description: "After asking about her yearly pension life certificate (pension_note), record the answer. not_yet/needs_help tells the family with a checklist. Never ask for Aadhaar, PPO or bank numbers.",
+  shape: lifeCertShape,
+  spec: {
+    name: "log_life_certificate", tier: "T1",
+    label: (a) => `🪪 Life certificate: ${a.status === "done" ? "submitted ✓" : a.status === "needs_help" ? "needs help (family told)" : "not yet (family told)"}`,
+    run: async (a, { elder }) => {
+      await ensureCall(elder.elderId, a.call_id);
+      await logLifeCert(elder, a.status, "elder", a.method);
+      return { ok: true, say: a.status === "done" ? "Praise her." : "Tell her you've let the family know so they can help, and it only takes a few minutes at the bank or on a phone." };
+    },
+  },
+};
+
+// ---------------- relay_wish (T2) — P2-10 ----------------
+const wishShape = {
+  elder_id, call_id,
+  occasion_id: z.string().describe("The id given in occasions, e.g. occ_..."),
+  wish: z.string().min(2).max(300).describe("Her wish, in her words"),
+  elder_consented: z.boolean().describe("true only after she agreed to send it"),
+};
+export const relay_wish: AgentTool<typeof wishShape> = {
+  description: "She wants to send a birthday/anniversary wish (from occasions). Relays her words to the family, who pass it on.",
+  shape: wishShape,
+  spec: {
+    name: "relay_wish", tier: "T2",
+    label: (a, r) => `🎂 Wish for ${r.for}: "${a.wish.slice(0, 50)}"`,
+    run: async (a, { elder }) => {
+      await ensureCall(elder.elderId, a.call_id);
+      return relayWish(elder, a.occasion_id, a.wish, a.call_id);
+    },
+  },
+};
+
 export const PHASE1_TOOLS = {
   get_today_context, recall_memory, mark_message_delivered, set_reminder, request_callback,
   update_call_preferences, record_consent, raise_emergency, log_scam_drill, request_appointment,
+  get_shared_with_family, keep_private, log_life_certificate, relay_wish,
 };
 
