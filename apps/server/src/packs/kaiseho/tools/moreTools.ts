@@ -283,8 +283,8 @@ export const request_appointment: AgentTool<typeof apptShape> = {
     name: "request_appointment", tier: "T2",
     label: (a) => `🏥 Appointment request: ${a.preferred}`,
     run: async (a, { elder }) => {
-      await ensureCall(elder.elderId, a.call_id);
-      const appt = await requestAppointment(elder, { preferred: a.preferred, reason: a.reason ? redactPII(a.reason) : undefined, requestedBy: "elder" });
+      const call = await ensureCall(elder.elderId, a.call_id);
+      const appt = await requestAppointment(elder, { preferred: a.preferred, reason: a.reason ? redactPII(a.reason) : undefined, requestedBy: "elder", simulated: call.mode === "simulated" });
       return { ok: true, say: `I'll call ${appt.clinicName} for ${appt.preferred} and tell you the time in our next call.` };
     },
   },

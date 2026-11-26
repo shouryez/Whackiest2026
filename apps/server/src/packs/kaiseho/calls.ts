@@ -13,12 +13,12 @@ import { buildContext } from "./context";
  * KaiseHo call flows on top of the Ek Call engine: check-ins, reminder/callback calls,
  * and the no-answer ladder (plan.md Section 8.4).
  */
-export async function callElder(elder: Elder, reason: string, extras: Record<string, string> = {}, attempt = 1) {
+export async function callElder(elder: Elder, reason: string, extras: Record<string, string> = {}, attempt = 1, opts: { simulated?: boolean } = {}) {
   // Consent first: until the elder says yes, the only call allowed is the consent (welcome) call.
   if (elder.status === "pending_consent" && reason !== "consent") throw new Error(`${elder.preferredName} hasn't consented yet: make the welcome call first`);
   if ((elder.status === "paused" || elder.status === "stopped") && reason === "daily") throw new Error(`calls are ${elder.status} for ${elder.preferredName}`);
   return startCall({
-    elder, reason, extras, attempt, buildContext,
+    elder, reason, extras, attempt, buildContext, forceSimulated: opts.simulated,
     onFailure: (call) => onNoAnswer(elder, call),
   });
 }

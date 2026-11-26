@@ -124,8 +124,10 @@ export async function doctorBrief(elder: Elder, days = 30) {
   for (const n of healthNotes.slice(-3)) questions.push(`She mentioned: "${n.text}"`);
   if (!questions.length) questions.push("Anything to adjust in her current medicines or routine?");
 
+  const upcoming = (await repo.listAppointments(elder.elderId)).filter((a) => a.status === "confirmed" && (a.slotLocalIso ?? "") >= today).sort((a, b) => (a.slotLocalIso ?? "").localeCompare(b.slotLocalIso ?? ""))[0];
   return {
     elder: { name: elder.name, preferredName: elder.preferredName, age: elder.age, city: elder.city, conditions: elder.conditions },
+    nextAppointment: upcoming ? { doctor: upcoming.doctor, clinic: upcoming.clinicName, when: upcoming.slotSpoken } : null,
     period: { from: since, to: today, days },
     callsCompleted: (await repo.listCalls(elder.elderId)).filter((c) => c.status === "completed" && (c.startedAt ?? "") >= since).length,
     medicines: perMed,

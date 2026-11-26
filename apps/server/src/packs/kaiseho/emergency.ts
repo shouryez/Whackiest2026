@@ -1,6 +1,6 @@
 import { HELPLINES, type Alert, type Elder } from "@kaiseho/shared";
 import { env } from "../../env";
-import { elevenLabsReady, placeOutboundCall } from "../../engine/calls";
+import { elevenLabsReady, isPlaceholderPhone, placeOutboundCall } from "../../engine/calls";
 import { emit } from "../../engine/events";
 import { scheduleJob } from "../../engine/jobs";
 import { getRepo } from "../../repo";
@@ -18,7 +18,7 @@ export const KIND_LABEL: Record<string, string> = {
 };
 
 export async function briefingCall(elder: Elder, alert: Alert, recipient: { name: string; relation: string; phone?: string }, extra: Record<string, string> = {}): Promise<"calling" | "simulated" | "failed"> {
-  const live = elevenLabsReady(env.ELEVENLABS_BRIEFING_AGENT_ID) && recipient.phone;
+  const live = elevenLabsReady(env.ELEVENLABS_BRIEFING_AGENT_ID) && !isPlaceholderPhone(recipient.phone) && !extra.simulated;
   emit("briefing.calling", elder.familyId, { alertId: alert.alertId, to: recipient.name, relation: recipient.relation, mode: live ? "live" : "simulated" }, elder.elderId);
   if (!live) return "simulated";
   try {

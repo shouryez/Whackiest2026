@@ -6,6 +6,7 @@ import { useApi } from "@/lib/live";
 
 interface Brief {
   elder: { name: string; preferredName: string; age?: number; city: string; conditions: string[] };
+  nextAppointment: { doctor: string; clinic: string; when?: string } | null;
   period: { from: string; to: string; days: number };
   callsCompleted: number;
   medicines: { name: string; schedule: string; taken: number; logged: number; adherencePct: number | null; missedDates: string[] }[];
@@ -39,6 +40,7 @@ export default function DoctorBrief() {
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-saffron-deep">Doctor brief · {b.period.days} days</p>
             <h1 className="font-display text-3xl font-semibold">{b.elder.name} ({b.elder.preferredName}), {b.elder.age}</h1>
             <p className="text-muted">{b.elder.city} · {b.elder.conditions.join(", ")}</p>
+            {b.nextAppointment && <p className="mt-1 text-sm font-semibold text-forest">Next visit: {b.nextAppointment.when} · {b.nextAppointment.doctor}, {b.nextAppointment.clinic}</p>}
           </div>
           <div className="text-right text-xs text-muted"><p>{d(b.period.from)} – {d(b.period.to)}</p><p>{b.callsCompleted} check-in calls</p><p>KaiseHo</p></div>
         </header>
@@ -48,7 +50,7 @@ export default function DoctorBrief() {
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-muted"><tr><th className="py-1">Medicine</th><th>Schedule</th><th>Taken</th><th>Missed on</th></tr></thead>
             <tbody>{b.medicines.map((m) => (
-              <tr key={m.name} className="border-t border-sand"><td className="py-1.5 font-semibold">{m.name}</td><td>{m.schedule}</td><td>{m.adherencePct ?? "—"}% ({m.taken}/{m.logged})</td><td className="text-xs">{m.missedDates.map(d).join(", ") || "—"}</td></tr>
+              <tr key={m.name} className="border-t border-sand"><td className="py-1.5 font-semibold">{m.name}</td><td>{m.schedule}</td><td>{m.adherencePct === null ? <span className="text-muted">new · not asked yet</span> : `${m.adherencePct}% (${m.taken}/${m.logged})`}</td><td className="text-xs">{m.missedDates.map(d).join(", ") || "—"}</td></tr>
             ))}</tbody>
           </table>
         </section>

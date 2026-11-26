@@ -1,6 +1,6 @@
 import type { Appointment, Elder } from "@kaiseho/shared";
 import { env } from "../../env";
-import { elevenLabsReady, placeOutboundCall } from "../../engine/calls";
+import { elevenLabsReady, isPlaceholderPhone, placeOutboundCall } from "../../engine/calls";
 import { emit } from "../../engine/events";
 import { addDays, localDate, newId, nowIso } from "../../engine/ids";
 import { scheduleAt } from "../../engine/scheduler";
@@ -33,7 +33,7 @@ export function suggestSlot(preferred: string, tz = "Asia/Kolkata", today = loca
   return `${addDays(today, ahead)}T${time}`;
 }
 
-export async function requestAppointment(elder: Elder, input: { preferred: string; reason?: string; clinicId?: string; requestedBy: string }): Promise<Appointment> {
+export async function requestAppointment(elder: Elder, input: { preferred: string; reason?: string; clinicId?: string; requestedBy: string; simulated?: boolean }): Promise<Appointment> {
   const clinic = elder.clinics?.find((c) => c.clinicId === input.clinicId) ?? elder.clinics?.[0];
   if (!clinic) throw new Error(`No clinic saved for ${elder.preferredName}. Add one on the dashboard first.`);
   const appt: Appointment = {
@@ -44,14 +44,14 @@ export async function requestAppointment(elder: Elder, input: { preferred: strin
   await getRepo().putAppointment(appt);
   emit("appointment.updated", elder.familyId, { appointment: appt, label: `🏥 Appointment requested with ${clinic.doctor} (${appt.preferred})` }, elder.elderId);
   // Call the clinic right away (a demo; production would respect clinic hours).
-  void callClinic(elder, appt).catch((err) => console.error("[clinic]", err));
+  void callClinic(elder, appt, { simulated: input.simulated }).catch((err) => console.error("[clinic]", err));
   return appt;
 }
 
-export async function callClinic(elder: Elder, appt: Appointment): Promise<Appointment> {
+export async function callClinic(elder: Elder, appt: Appointment, opts: { simulated?: boolean } = {}): Promise<Appointment> {
   const repo = getRepo();
   const clinic = elder.clinics?.find((c) => c.clinicId === appt.clinicId);
-  const live = Boolean(clinic && elevenLabsReady(env.ELEVENLABS_CLINIC_AGENT_ID));
+  const live = Boolean(clinic && elevenLabsReady(env.ELEVENLABS_CLINIC_AGENT_ID) && !isPlaceholderPhone(clinic.phone) && !opts.simulated);
   appt.status = "calling"; appt.mode = live ? "live" : "simulated"; appt.updatedAt = nowIso();
   await repo.putAppointment(appt);
   emit("appointment.updated", elder.familyId, { appointment: appt, label: `📞 KaiseHo is calling ${appt.clinicName} to book ${appt.preferred}${live ? "" : " (simulated)"}` }, elder.elderId);

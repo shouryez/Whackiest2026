@@ -11,6 +11,9 @@ import { localDate, newId, nowIso } from "./ids";
  */
 export type ContextBuilder = (elder: Elder, reason: string, callId: string, extras: Record<string, string>) => Promise<Record<string, string>>;
 
+/** Seeded demo numbers (+910000000…) are never dialled. */
+export const isPlaceholderPhone = (p?: string) => !p || /^\+?910000000\d{3}$/.test(p.replace(/[\s-]/g, ""));
+
 export function elevenLabsReady(agentId = env.ELEVENLABS_AGENT_ID): boolean {
   return Boolean(env.ELEVENLABS_API_KEY && agentId && env.ELEVENLABS_PHONE_NUMBER_ID);
 }
@@ -48,12 +51,14 @@ export async function startCall(opts: {
   attempt?: number;
   buildContext: ContextBuilder;
   onFailure?: (call: Call, err: Error) => Promise<void>;
+  /** Demo replays must never ring a real phone, whatever keys are configured. */
+  forceSimulated?: boolean;
 }): Promise<{ call: Call; dynamicVariables: Record<string, string> }> {
   const repo = getRepo();
   const { elder, reason } = opts;
   const callId = makeCallId(elder.tz);
   const dynamicVariables = await opts.buildContext(elder, reason, callId, opts.extras ?? {});
-  const live = elevenLabsReady();
+  const live = !opts.forceSimulated && elevenLabsReady() && !isPlaceholderPhone(elder.phone);
   const call: Call = {
     elderId: elder.elderId, callId, reason, status: "ringing", attempt: opts.attempt ?? 1,
     startedAt: nowIso(), familyMessagesSent: 0, mode: live ? "live" : "simulated",

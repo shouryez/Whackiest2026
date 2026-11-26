@@ -50,7 +50,7 @@ export async function playDemoCall(elder: Elder, opts: { scam?: boolean; emergen
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const kind = opts.kind ?? (elder.status === "pending_consent" ? "consent" : "daily");
   const primary = (await getRepo().listMembers(elder.familyId)).find((m) => m.role === "primary")?.name ?? "your family";
-  const { call } = await callElder(elder, kind);
+  const { call } = await callElder(elder, kind, {}, 1, { simulated: true });
   const conversationId = newId("conv_sim");
   call.conversationId = conversationId;
   call.mode = "simulated";
