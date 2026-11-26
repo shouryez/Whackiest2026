@@ -13,3 +13,4 @@ coverage/
 .data/
 cdk.out/
 cdk.context.json
+*.mp4
