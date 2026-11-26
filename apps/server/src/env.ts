@@ -40,7 +40,8 @@ const EnvSchema = z.object({
   DIGEST_TIME: z.string().default("20:00"),
 
   /** LLM for the post-call insight pass, starters and scam layer 2. "none" = deterministic rules only. */
-  LLM_PROVIDER: z.enum(["none", "anthropic", "bedrock", "openai"]).default("none"),
+  LLM_PROVIDER: z.enum(["none", "anthropic", "bedrock", "gemini", "openai"]).default("none"),
+  GEMINI_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
 

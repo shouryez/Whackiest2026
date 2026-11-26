@@ -11,6 +11,7 @@ import { env } from "../env";
 export function llmEnabled(): boolean {
   if (env.LLM_PROVIDER === "anthropic") return Boolean(env.ANTHROPIC_API_KEY);
   if (env.LLM_PROVIDER === "bedrock") return Boolean(env.BEDROCK_MODEL_ID);
+  if (env.LLM_PROVIDER === "gemini") return Boolean(env.GEMINI_API_KEY);
   return false;
 }
 
@@ -28,6 +29,44 @@ async function callBedrock(system: string, user: string, timeoutMs: number): Pro
     { abortSignal: AbortSignal.timeout(timeoutMs) },
   );
   return (r.output?.message?.content ?? []).map((c) => ("text" in c ? c.text : "")).join("");
+}
+
+/** Google Gemini (generateContent). JSON mode keeps replies machine-readable. */
+/** Busy or rate-limited models (503/429/500) fall through to the next one. */
+const GEMINI_FALLBACKS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3-flash-preview"];
+async function callGemini(system: string, user: string, timeoutMs: number, image?: ImageInput, model?: string): Promise<string> {
+  const models = [...new Set([model ?? env.LLM_MODEL ?? GEMINI_FALLBACKS[0], ...GEMINI_FALLBACKS])];
+  const deadline = Date.now() + timeoutMs;
+  let lastErr: Error = new Error("no Gemini model available");
+  for (const m of models) {
+    const left = deadline - Date.now();
+    if (left < 300) break;
+    try {
+      return await callGeminiModel(m, system, user, left, image);
+    } catch (err) {
+      lastErr = err as Error;
+      if (!/LLM (503|429|500)/.test(lastErr.message)) throw lastErr;
+      console.warn(`[llm] ${m} busy, trying next model`);
+    }
+  }
+  throw lastErr;
+}
+
+async function callGeminiModel(m: string, system: string, user: string, timeoutMs: number, image?: ImageInput): Promise<string> {
+  const parts: Record<string, unknown>[] = image ? [{ inline_data: { mime_type: image.mediaType, data: image.base64 } }, { text: user }] : [{ text: user }];
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
+    method: "POST",
+    headers: { "x-goog-api-key": env.GEMINI_API_KEY!, "content-type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts }],
+      generationConfig: { responseMimeType: "application/json", temperature: image ? 0 : 0.2, maxOutputTokens: 4096 },
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  return (body.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
 }
 
 async function callAnthropic(system: string, user: string, timeoutMs: number): Promise<string> {
@@ -51,6 +90,13 @@ async function callAnthropic(system: string, user: string, timeoutMs: number): P
   return body.content.filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
 }
 
+/** Some models write null for "not present"; our schemas treat missing as optional. */
+function stripNulls(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stripNulls);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== null).map(([k, x]) => [k, stripNulls(x)]));
+  return v;
+}
+
 function extractJson(text: string): unknown {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -68,9 +114,9 @@ export async function llmJson<T>(opts: {
   const system = `${opts.system}\nReply with ONE JSON object only. No prose, no code fences.`;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const call = env.LLM_PROVIDER === "bedrock" ? callBedrock : callAnthropic;
+      const call = env.LLM_PROVIDER === "bedrock" ? callBedrock : env.LLM_PROVIDER === "gemini" ? callGemini : callAnthropic;
       const text = await call(system, opts.user, opts.timeoutMs ?? 20000);
-      const parsed = opts.schema.safeParse(extractJson(text));
+      const parsed = opts.schema.safeParse(stripNulls(extractJson(text)));
       if (parsed.success) return parsed.data;
       console.warn("[llm] schema mismatch", parsed.error.issues.slice(0, 3));
     } catch (err) {
@@ -123,10 +169,12 @@ async function visionBedrock(system: string, user: string, img: ImageInput, time
 export async function llmVisionJson<T>(opts: { system: string; user: string; image: ImageInput; schema: z.ZodType<T>; timeoutMs?: number }): Promise<T | null> {
   if (!llmEnabled()) return null;
   const system = `${opts.system}\nReply with ONE JSON object only. No prose, no code fences.`;
-  const call = env.LLM_PROVIDER === "bedrock" ? visionBedrock : visionAnthropic;
+  const call = env.LLM_PROVIDER === "bedrock" ? visionBedrock : env.LLM_PROVIDER === "gemini"
+    ? (s: string, u: string, img: ImageInput, t: number) => callGemini(s, u, t, img, env.LLM_VISION_MODEL)
+    : visionAnthropic;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const parsed = opts.schema.safeParse(extractJson(await call(system, opts.user, opts.image, opts.timeoutMs ?? 45000)));
+      const parsed = opts.schema.safeParse(stripNulls(extractJson(await call(system, opts.user, opts.image, opts.timeoutMs ?? 45000))));
       if (parsed.success) return parsed.data;
       console.warn("[llm vision] schema mismatch", parsed.error.issues.slice(0, 3));
     } catch (err) {

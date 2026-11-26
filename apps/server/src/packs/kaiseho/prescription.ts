@@ -37,10 +37,10 @@ const ExtractSchema = z.object({
     name: z.string(),
     dose: z.string().default(""),
     frequency_text: z.string().default(""),
-    slots: z.array(z.enum(["morning", "afternoon", "evening", "night"])).default([]),
-    with_food: z.enum(["before", "after", "any"]).optional(),
+    slots: z.array(z.string()).default([]).transform((xs) => xs.map((x) => x.toLowerCase()).filter((x): x is Slot => ["morning", "afternoon", "evening", "night"].includes(x))),
+    with_food: z.string().optional().transform((v) => (v && /before|empty|ac/i.test(v) ? "before" : v && /after|pc/i.test(v) ? "after" : undefined) as "before" | "after" | undefined),
     duration: z.string().optional(),
-    confidence: z.number().min(0).max(1).default(0.5),
+    confidence: z.coerce.number().min(0).max(1).catch(0.5).default(0.5),
   })).max(15),
   doctor: z.string().optional(),
   date: z.string().optional(),
@@ -70,7 +70,7 @@ export function parseImage(dataUrlOrBase64: string, mediaType?: string): ImageIn
 }
 
 export async function readPrescription(image: ImageInput): Promise<{ medicines: DraftMedicine[]; doctor?: string; date?: string; unreadable: string[] }> {
-  if (!llmEnabled()) throw new PrescriptionError("Prescription reading needs an AI key (set LLM_PROVIDER + ANTHROPIC_API_KEY or Bedrock). You can still add medicines by hand.", 503);
+  if (!llmEnabled()) throw new PrescriptionError("Prescription reading needs an AI key (set LLM_PROVIDER + GEMINI_API_KEY, ANTHROPIC_API_KEY or Bedrock). You can still add medicines by hand.", 503);
   const out = (await llmVisionJson({ system: SYSTEM, user: "Read this prescription.", image, schema: ExtractSchema })) as z.output<typeof ExtractSchema> | null;
   if (!out) throw new PrescriptionError("Couldn't read this photo. Try a clearer, well-lit photo, or add medicines by hand.", 422);
   return {
