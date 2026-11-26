@@ -8,6 +8,7 @@ import { markInProgress } from "../../../engine/calls";
 import { createAlert } from "../alerts";
 import { adviceFor } from "../scam/advice";
 import { classifyScam } from "../scam/classifier";
+import { checkRefill } from "../health";
 
 /**
  * Agent tools for /mcp/agent (plan.md Section 10.1). Phase 0 set:
@@ -65,6 +66,7 @@ export const log_medication: AgentTool<typeof logMedicationShape> = {
       if (med && a.status === "taken" && typeof med.stockCount === "number") {
         med.stockCount = Math.max(0, med.stockCount - 1);
         await repo.putMedication(med);
+        await checkRefill(elder, med);
       }
       const due = meds.reduce((n, m) => n + m.slots.length, 0);
       const taken = (await repo.listMedLogs(elder.elderId, date)).filter((l) => l.date === date && l.status === "taken").length;

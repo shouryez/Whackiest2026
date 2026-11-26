@@ -90,6 +90,7 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 - [x] Phase 2: Family MCP door + full dashboard redesign
 - [x] Phase 3: emergency cascade + briefing agent, no-answer ladder, Live Ops, weekly audio digest, onboarding + consent call, Scam Shield LLM layer 2
 - [x] Phase 4: AWS hardening: DynamoDB single table, EventBridge Scheduler → Lambda job runner, S3, Bedrock, Secrets Manager, EC2 + CloudFront, CloudWatch (see [docs/aws-runbook.md](docs/aws-runbook.md))
+- [x] Phase 5 (P2 polish): refill prediction, change detection ("worth discussing with her doctor"), printable doctor brief, weekly scam "vaccine" drills (+ `get_doctor_brief` / `get_refills` for Claude)
 
 ## Team SantaClaude
 | Member | USN |

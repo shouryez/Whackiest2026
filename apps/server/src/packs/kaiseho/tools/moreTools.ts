@@ -11,6 +11,7 @@ import { getRepo } from "../../../repo";
 import { createAlert } from "../alerts";
 import { buildContext } from "../context";
 import { raiseEmergency } from "../emergency";
+import { DRILLS } from "../health";
 import { ensureCall, type AgentTool } from "./agentTools";
 
 /** Phase 1 agent tools (plan.md Section 10.1). */
@@ -239,8 +240,36 @@ export const raise_emergency: AgentTool<typeof emergencyShape> = {
   },
 };
 
+// ---------------- log_scam_drill (T1) ----------------
+const drillShape = {
+  elder_id, call_id,
+  drill_id: z.string().describe("The id given in scam_drill"),
+  passed: z.boolean().describe("true if her answer was safe (hang up / don't share / check with family)"),
+  answer: z.string().max(200).optional().describe("Her answer, briefly"),
+};
+export const log_scam_drill: AgentTool<typeof drillShape> = {
+  description: "After asking the weekly scam-safety question (scam_drill), record whether her answer was safe. If not, gently teach the right answer before logging.",
+  shape: drillShape,
+  spec: {
+    name: "log_scam_drill", tier: "T1",
+    label: (a) => `🎓 Scam drill (${a.drill_id.replace("_", " ")}): ${a.passed ? "answered safely ✓" : "learned the safe answer"}`,
+    run: async (a, { elder }) => {
+      const repo = getRepo();
+      await ensureCall(elder.elderId, a.call_id);
+      const d = DRILLS.find((x) => x.id === a.drill_id);
+      const prev = await repo.getCheckIn(elder.elderId, a.call_id);
+      await repo.putCheckIn({
+        elderId: elder.elderId, callId: a.call_id, date: prev?.date ?? new Date().toISOString().slice(0, 10), ...prev,
+        scamDrill: { id: a.drill_id, question: d?.q ?? a.drill_id, passed: a.passed, answer: a.answer ? redactPII(a.answer) : undefined },
+        updatedAt: nowIso(),
+      });
+      return { ok: true, praise: a.passed };
+    },
+  },
+};
+
 export const PHASE1_TOOLS = {
   get_today_context, recall_memory, mark_message_delivered, set_reminder, request_callback,
-  update_call_preferences, record_consent, raise_emergency,
+  update_call_preferences, record_consent, raise_emergency, log_scam_drill,
 };
 

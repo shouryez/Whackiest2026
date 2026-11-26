@@ -27,6 +27,7 @@ const SCRIPT = (withScam: boolean, withEmergency: boolean): Step[] => [
   }] : []),
   ...(withEmergency ? [{ agent: "Are you feeling alright?", say: "My chest is paining and I feel dizzy.", tool: "raise_emergency" as const, args: { kind: "chest_pain", details: "My chest is paining and I feel dizzy" } }] : []),
   { agent: "Would you like me to tell Ravi anything?", say: "Tell him I miss him. Yes, send it.", tool: "send_family_message", args: { text: "I miss you, come soon", elder_consented: true } },
+  { agent: "A quick safety quiz, Amma: if the 'bank' asks for the OTP on your phone, what do you do?", say: "I never tell anyone. I hang up.", tool: "log_scam_drill", args: { drill_id: "otp_bank", passed: true, answer: "never tell, hang up" } },
   { agent: "I'll call you tomorrow at 9. Take care, Amma!", say: "Bye, beta." },
 ];
 

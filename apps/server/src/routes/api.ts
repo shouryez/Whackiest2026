@@ -17,6 +17,7 @@ import { storedToday, timeline, trends, weeklySummary } from "../packs/kaiseho/f
 import { computeNudge, conversationStarters, familyCallStats, logFamilyCall } from "../packs/kaiseho/nudges";
 import { purgeTranscripts } from "../packs/kaiseho/postcall";
 import { buildDigest } from "../packs/kaiseho/digest";
+import { detectChanges, doctorBrief, drillScore, refills } from "../packs/kaiseho/health";
 import { ttsReady } from "../engine/tts";
 import { DEMO, seedDemo } from "../packs/kaiseho/seed";
 import { filterForFamily, todayView } from "../packs/kaiseho/views";
@@ -154,6 +155,22 @@ api.post("/family/delete-all", async (c) => {
   await repo.deleteFamilyData(DEMO.familyId);
   emit("demo.reset", DEMO.familyId, { deleted: true });
   return c.json({ ok: true, note: "All family data deleted. (Demo: use Reset to seed again.)" });
+});
+
+// ---------- health: refills, changes, scam drills, doctor brief (Phase 5) ----------
+api.get("/elders/:id/health", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  return c.json({ refills: await refills(e), changes: await detectChanges(e), drills: await drillScore(e) });
+});
+api.get("/elders/:id/doctor-brief", async (c) => c.json(await doctorBrief(await elderOr404(c.req.param("id")), Number(c.req.query("days") ?? 30))));
+api.patch("/elders/:id/medications/:medId", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ stockCount: z.number().int().min(0).max(1000) }).parse(await c.req.json());
+  const med = (await repo.listMedications(e.elderId)).find((m) => m.medId === c.req.param("medId"));
+  if (!med) return c.json({ error: "not found" }, 404);
+  med.stockCount = b.stockCount;
+  await repo.putMedication(med);
+  return c.json({ ok: true });
 });
 
 // ---------- weekly audio digest ----------

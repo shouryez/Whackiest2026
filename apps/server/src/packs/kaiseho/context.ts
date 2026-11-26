@@ -2,6 +2,7 @@ import type { Elder, Slot } from "@kaiseho/shared";
 import { localDate } from "../../engine/ids";
 import { weatherNote } from "../../engine/weather";
 import { getRepo } from "../../repo";
+import { nextDrill } from "./health";
 
 /**
  * Context builder (plan.md Section 12.3): everything the agent needs, pushed as
@@ -45,6 +46,9 @@ export async function buildContext(
   const lastCompleted = (await repo.listCalls(elder.elderId)).find((c) => c.status === "completed" && c.summary);
   const lastSummary = lastCompleted?.summary?.family_en.split(/(?<=\.)\s/)[0] ?? "";
 
+  // Weekly scam "vaccine" drill on regular check-ins only.
+  const drill = reason === "daily" || reason === "checkin" ? await nextDrill(elder) : null;
+
   const now = new Date();
   const localTime = new Intl.DateTimeFormat("en-IN", { timeZone: elder.tz, hour: "numeric", minute: "2-digit", weekday: "long" }).format(now);
 
@@ -64,6 +68,7 @@ export async function buildContext(
     last_call_summary: lastSummary || "This is one of the first calls.",
     weather_note: await weatherNote(elder.city, elder.lat, elder.lon),
     reminder_text: extras.reminder_text ?? "",
+    scam_drill: drill ? `[id:${drill.id}] Ask: "${drill.q}" Safe answer: ${drill.good}` : "none",
     privacy_note: privateTopics.length ? `She asked to keep some ${[...new Set(privateTopics)].join("/")} topics private. Never bring them up or share them.` : "none",
   };
 }

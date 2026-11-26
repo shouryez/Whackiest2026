@@ -11,6 +11,7 @@ import { onNoAnswer } from "./calls";
 import { runInsightPass } from "./insights";
 import { computeNudge, logFamilyCall } from "./nudges";
 import { pr } from "./pronouns";
+import { flagChanges } from "./health";
 
 /**
  * KaiseHo's post-call brain (plan.md Section 8.6 steps 2–10).
@@ -125,6 +126,7 @@ async function onTranscript(p: PostCallPayload): Promise<void> {
     }
   }
   await computeNudge(elder);
+  await flagChanges(elder);
 }
 
 async function onInitiationFailure(p: PostCallPayload): Promise<void> {

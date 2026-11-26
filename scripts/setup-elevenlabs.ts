@@ -153,7 +153,7 @@ const CALLER_PLACEHOLDERS = {
   follow_ups: "Knee pain after climbing the temple stairs; Kamala aunty's cataract surgery on Friday",
   family_messages: '[{"id":"msg_ravi_sunday","from":"Ravi","text":"I\'ll visit on Sunday"}]',
   last_call_summary: "Yesterday: slept well, took all medicines, mild knee pain.",
-  weather_note: "Sunny, 31°C in Mysuru", reminder_text: "", privacy_note: "none",
+  weather_note: "Sunny, 31°C in Mysuru", reminder_text: "", scam_drill: "none", privacy_note: "none",
 };
 const FIRST_MESSAGE: Record<string, string> = {
   kn: "ನಮಸ್ಕಾರ {{preferred_name}}! ನಾನು KaiseHo, {{family_contact_name}} ಅವರ AI ಸಹಾಯಕ. ಹೇಗಿದ್ದೀರಾ?",

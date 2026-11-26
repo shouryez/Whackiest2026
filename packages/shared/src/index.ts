@@ -129,6 +129,8 @@ export interface CheckIn {
   energy?: number;
   appetite?: "good" | "low";
   notes?: string;
+  /** Weekly scam "vaccine" drill asked in this call (plan.md P2-7). */
+  scamDrill?: { id: string; question: string; passed: boolean; answer?: string };
   updatedAt: string;
 }
 

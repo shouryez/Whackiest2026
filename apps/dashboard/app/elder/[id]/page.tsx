@@ -3,13 +3,14 @@ import { Handshake, BadgeCheck, Brain, CalendarClock, ChevronDown, Clock, HeartP
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { DigestCard } from "@/components/DigestCard";
+import { HealthCard } from "@/components/HealthCard";
 import { AdherenceChart, MoodPainChart, SummaryBlock, TodayCard } from "@/components/cards";
 import { Avatar, Badge, Button, Card, CardHeader, Empty, Skeleton, cx } from "@/components/ui";
 import { api, post, type Memory, type Message, type Profile, type TimelineCall, type TodayView, type TrendPoint } from "@/lib/api";
 import { MOOD_EMOJI, cap, clock, dayLabel, timeAgo } from "@/lib/format";
 import { useApi, useLive } from "@/lib/live";
 
-const SECTIONS = [["today", "Today"], ["calls", "Calls"], ["trends", "Trends"], ["memories", "Memories"], ["messages", "Messages"], ["medicines", "Medicines"], ["schedule", "Schedule"]] as const;
+const SECTIONS = [["today", "Today"], ["health", "Health"], ["calls", "Calls"], ["trends", "Trends"], ["memories", "Memories"], ["messages", "Messages"], ["medicines", "Medicines"], ["schedule", "Schedule"]] as const;
 const MEM_STYLE: Record<string, string> = { person: "bg-[#e9ebfb] text-navy", event: "bg-saffron-soft text-saffron-deep", health: "bg-danger-soft text-danger", preference: "bg-forest-soft text-forest", story: "bg-sand/60 text-muted", plan: "bg-[#e6f4f1] text-[#0f766e]" };
 
 function Transcript({ elderId, callId }: { elderId: string; callId: string }) {
@@ -234,6 +235,8 @@ export default function ElderPage() {
           </section>
         </div>
       </div>
+
+      <section id="health" className="scroll-mt-24"><HealthCard elderId={id} /></section>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section id="messages" className="scroll-mt-24"><MessagesPanel elderId={id} /></section>

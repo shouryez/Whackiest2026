@@ -35,7 +35,7 @@ export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<vo
   await repo.putElder(elder);
 
   const meds: Medication[] = [
-    { elderId: elder.elderId, medId: "med_metformin", name: "Metformin", dose: "500 mg", slots: ["morning", "night"], withFood: "after", startDate: "2026-01-01", stockCount: 40, refillThresholdDays: 3, active: true, addedBy: "family:mem_ravi" },
+    { elderId: elder.elderId, medId: "med_metformin", name: "Metformin", dose: "500 mg", slots: ["morning", "night"], withFood: "after", startDate: "2026-01-01", stockCount: 8, refillThresholdDays: 3, active: true, addedBy: "family:mem_ravi" },
   ];
   for (const m of meds) await repo.putMedication(m);
 

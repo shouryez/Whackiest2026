@@ -10,6 +10,7 @@ import { callElder } from "../calls";
 import { storedToday, timeline, trends, weeklySummary } from "../family";
 import { conversationStarters, familyCallStats } from "../nudges";
 import { todayView } from "../views";
+import { doctorBrief, drillScore, refills } from "../health";
 
 /**
  * /mcp/family tools (plan.md Section 10.2): the child's door, used from Claude or any MCP client.
@@ -108,6 +109,16 @@ export const FAMILY_TOOLS = {
       name: "get_audit_log", tier: "T0", label: () => "🧾 Family read the audit log",
       run: async (a, { elder }) => ({ entries: (await getRepo().listAudit(elder.elderId)).slice(0, a.limit ?? 15).map((x) => `${x.ts.slice(5, 16).replace("T", " ")} ${x.tier} ${x.actor} ${x.tool}: ${x.resultSummary}`), stored_today: await storedToday(elder) }),
     },
+  }),
+  get_doctor_brief: t({
+    description: "A one-page summary for her next doctor visit: medicine adherence, mood, pain timeline, changes, events and questions to ask (last N days).",
+    shape: { elder_id, days: z.number().int().min(7).max(90).optional() },
+    spec: { name: "get_doctor_brief", tier: "T0", label: () => "🩺 Family read the doctor brief", run: async (a, { elder }) => doctorBrief(elder, a.days ?? 30) },
+  }),
+  get_refills: t({
+    description: "Medicine stock: days left for each medicine and when it runs out.",
+    shape: { elder_id },
+    spec: { name: "get_refills", tier: "T0", label: () => "💊 Family checked refills", run: async (_a, { elder }) => ({ refills: await refills(elder), scam_drills: await drillScore(elder) }) },
   }),
   get_call_history: t({
     description: "Recent check-in calls with their summaries.",
