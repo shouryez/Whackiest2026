@@ -18,6 +18,7 @@ function recipients(members: Member[], severity: Severity, type: AlertType, to?:
   if (severity === "emergency") return members;
   // A message from the elder is delivered to whoever she addressed, whatever its severity.
   if (type === "message") return members.filter((m) => m.role !== "neighbour" && (!to || to.includes(m.name)));
+  if (type === "appointment") return members.filter((m) => m.role === "primary");
   if (severity === "urgent") {
     return members.filter((m) => m.role === "primary" || (m.role === "secondary" && type === "scam"));
   }

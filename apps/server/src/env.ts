@@ -22,6 +22,13 @@ const EnvSchema = z.object({
   ELEVENLABS_API_BASE: z.string().default("https://api.elevenlabs.io"),
 
   ELEVENLABS_BRIEFING_AGENT_ID: z.string().optional(),
+  /** Clinic-calling agent (P2-14) and its own MCP door token. */
+  ELEVENLABS_CLINIC_AGENT_ID: z.string().optional(),
+  CLINIC_MCP_TOKEN: z.string().default("dev-clinic-token"),
+  /** Demo: a teammate's phone plays the clinic receptionist. */
+  DEMO_CLINIC_PHONE: z.string().optional(),
+  /** Vision model for prescription photos (defaults to LLM_MODEL). */
+  LLM_VISION_MODEL: z.string().optional(),
   ELEVENLABS_DIGEST_VOICE_ID: z.string().optional(),
   ELEVENLABS_TTS_MODEL: z.string().default("eleven_multilingual_v2"),
   /** Digest MP3 via ElevenLabs TTS costs credits (~800 chars each). Off = browser voice on the dashboard. */

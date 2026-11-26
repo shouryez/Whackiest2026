@@ -12,6 +12,7 @@ import { createAlert } from "../alerts";
 import { buildContext } from "../context";
 import { raiseEmergency } from "../emergency";
 import { DRILLS } from "../health";
+import { requestAppointment } from "../clinic";
 import { ensureCall, type AgentTool } from "./agentTools";
 
 /** Phase 1 agent tools (plan.md Section 10.1). */
@@ -268,8 +269,29 @@ export const log_scam_drill: AgentTool<typeof drillShape> = {
   },
 };
 
+// ---------------- request_appointment (T2) ----------------
+const apptShape = {
+  elder_id, call_id,
+  preferred: z.string().min(2).max(80).describe("When she'd like to go, in her words, e.g. 'Thursday morning'"),
+  reason: z.string().max(120).optional().describe("Only for the family's notes; the clinic is told just 'follow-up visit'"),
+  elder_consented: z.boolean().describe("true only after she agreed that KaiseHo may call the clinic for her"),
+};
+export const request_appointment: AgentTool<typeof apptShape> = {
+  description: "She asked you to book a doctor's appointment: confirm the day/time she wants and that you may call the clinic for her (elder_consented=true). KaiseHo then calls the clinic and tells her the slot in the next call.",
+  shape: apptShape,
+  spec: {
+    name: "request_appointment", tier: "T2",
+    label: (a) => `🏥 Appointment request: ${a.preferred}`,
+    run: async (a, { elder }) => {
+      await ensureCall(elder.elderId, a.call_id);
+      const appt = await requestAppointment(elder, { preferred: a.preferred, reason: a.reason ? redactPII(a.reason) : undefined, requestedBy: "elder" });
+      return { ok: true, say: `I'll call ${appt.clinicName} for ${appt.preferred} and tell you the time in our next call.` };
+    },
+  },
+};
+
 export const PHASE1_TOOLS = {
   get_today_context, recall_memory, mark_message_delivered, set_reminder, request_callback,
-  update_call_preferences, record_consent, raise_emergency, log_scam_drill,
+  update_call_preferences, record_consent, raise_emergency, log_scam_drill, request_appointment,
 };
 

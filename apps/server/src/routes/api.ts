@@ -18,6 +18,8 @@ import { computeNudge, conversationStarters, familyCallStats, logFamilyCall } fr
 import { purgeTranscripts } from "../packs/kaiseho/postcall";
 import { buildDigest } from "../packs/kaiseho/digest";
 import { detectChanges, doctorBrief, drillScore, refills } from "../packs/kaiseho/health";
+import { callClinic, requestAppointment } from "../packs/kaiseho/clinic";
+import { parseImage, PrescriptionError, readPrescription } from "../packs/kaiseho/prescription";
 import { ttsReady } from "../engine/tts";
 import { DEMO, seedDemo } from "../packs/kaiseho/seed";
 import { filterForFamily, todayView } from "../packs/kaiseho/views";
@@ -69,7 +71,7 @@ api.get("/elders/:id", async (c) => c.json(await todayView(await elderOr404(c.re
 api.get("/elders/:id/profile", async (c) => {
   const e = await elderOr404(c.req.param("id"));
   const consent = await repo.getLatestConsent(e.elderId);
-  return c.json({ elder: { ...e, phone: e.phone.replace(/\d(?=\d{3})/g, "•") }, consent, meds: (await repo.listMedications(e.elderId)).filter((m) => m.active), reminders: (await repo.listReminders(e.elderId)).filter((r) => r.status === "scheduled") });
+  return c.json({ elder: { ...e, phone: e.phone.replace(/\d(?=\d{3})/g, "•"), clinics: (e.clinics ?? []).map((k) => ({ ...k, phone: k.phone.replace(/\d(?=\d{3})/g, "•") })) }, consent, meds: (await repo.listMedications(e.elderId)).filter((m) => m.active), reminders: (await repo.listReminders(e.elderId)).filter((r) => r.status === "scheduled") });
 });
 api.get("/elders/:id/timeline", async (c) => c.json(await timeline(await elderOr404(c.req.param("id")), Number(c.req.query("days") ?? 14))));
 api.get("/elders/:id/trends", async (c) => c.json(await trends(await elderOr404(c.req.param("id")), Number(c.req.query("days") ?? 14))));
@@ -171,6 +173,43 @@ api.patch("/elders/:id/medications/:medId", async (c) => {
   med.stockCount = b.stockCount;
   await repo.putMedication(med);
   return c.json({ ok: true });
+});
+
+// ---------- prescription photo → draft schedule (P2-2). Never auto-saved; the photo is not stored. ----------
+api.post("/elders/:id/prescription", async (c) => {
+  await elderOr404(c.req.param("id"));
+  const b = z.object({ image: z.string().min(100), mediaType: z.string().optional() }).parse(await c.req.json());
+  try {
+    const draft = await readPrescription(parseImage(b.image, b.mediaType));
+    return c.json({ ok: true, ...draft, note: "Draft only: check every row against the prescription before saving." });
+  } catch (err) {
+    if (err instanceof PrescriptionError) return c.json({ ok: false, error: err.message }, err.status);
+    throw err;
+  }
+});
+
+// ---------- clinics + appointments (P2-14) ----------
+api.get("/elders/:id/appointments", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  return c.json({ clinics: e.clinics ?? [], appointments: await repo.listAppointments(e.elderId) });
+});
+api.post("/elders/:id/appointments", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ preferred: z.string().min(2).max(80), clinicId: z.string().optional(), note: z.string().max(120).optional() }).parse(await c.req.json());
+  return c.json({ ok: true, appointment: await requestAppointment(e, { preferred: b.preferred, clinicId: b.clinicId, reason: b.note, requestedBy: ACTOR }) });
+});
+api.post("/elders/:id/appointments/:apptId/call", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const a = await repo.getAppointment(e.elderId, c.req.param("apptId"));
+  if (!a) return c.json({ error: "not found" }, 404);
+  return c.json({ ok: true, appointment: await callClinic(e, a) });
+});
+api.put("/elders/:id/clinics", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ name: z.string().min(2).max(60), doctor: z.string().min(2).max(60), phone: z.string().regex(/^\+?\d[\d\s-]{8,15}$/) }).parse(await c.req.json());
+  e.clinics = [{ clinicId: newId("clinic"), name: b.name, doctor: b.doctor, phone: b.phone.replace(/[\s-]/g, "") }, ...(e.clinics ?? [])].slice(0, 3);
+  await repo.putElder(e);
+  return c.json({ ok: true, clinics: e.clinics });
 });
 
 // ---------- weekly audio digest ----------

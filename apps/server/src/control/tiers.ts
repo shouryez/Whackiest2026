@@ -34,6 +34,8 @@ export interface ToolSpec<A extends Record<string, unknown>> {
 const T2_LIMITS: Record<string, { perCall?: number; perDay?: number }> = {
   send_family_message: { perCall: 5 },
   call_now: { perDay: 3 },
+  request_appointment: { perDay: 2 },
+  book_appointment: { perDay: 3 },
 };
 const counters = new Map<string, number>();
 function bump(key: string, limit: number): void {
@@ -52,7 +54,7 @@ function enforceTier(name: string, tier: Tier, args: Record<string, unknown>, el
     if (lim?.perCall) bump(`${name}#${elder.elderId}#${callId}`, lim.perCall);
     if (lim?.perDay) bump(`${name}#${elder.elderId}#${new Date().toISOString().slice(0, 10)}`, lim.perDay);
     // Non-safety messages to family need the elder's explicit yes.
-    if (name === "send_family_message" && args.elder_consented !== true) {
+    if ((name === "send_family_message" || name === "request_appointment") && args.elder_consented !== true) {
       throw new ToolRejected("elder consent missing", "ask the elder if they want this message sent, then retry with elder_consented=true");
     }
   }

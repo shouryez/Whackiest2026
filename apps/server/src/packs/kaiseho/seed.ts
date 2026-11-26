@@ -31,6 +31,7 @@ export async function seedDemo(opts: { resetEvents?: boolean } = {}): Promise<vo
     city: "Mysuru", lat: 12.2958, lon: 76.6394, address: "(demo address, Mysuru)", tz: "Asia/Kolkata",
     callTimeLocal: "09:00", callDays: [0, 1, 2, 3, 4, 5, 6], conditions: ["hypertension", "type 2 diabetes", "knee arthritis"],
     status: "active", privacy: { shareMedicines: true, shareWellbeing: true, shareMemories: true }, createdAt,
+    clinics: [{ clinicId: "clinic_rao", name: "Rao Clinic, Mysuru", doctor: "Dr. Rao", phone: process.env.DEMO_CLINIC_PHONE || "+910000000009" }],
   };
   await repo.putElder(elder);
 

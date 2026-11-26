@@ -16,7 +16,7 @@ export const Severity = z.enum(["info", "watch", "urgent", "emergency"]);
 export type Severity = z.infer<typeof Severity>;
 
 export const AlertType = z.enum([
-  "scam", "emergency", "no_answer", "missed_meds", "low_mood", "refill", "pause", "message", "health_change",
+  "scam", "emergency", "no_answer", "missed_meds", "low_mood", "refill", "pause", "message", "health_change", "appointment",
 ]);
 export type AlertType = z.infer<typeof AlertType>;
 
@@ -88,6 +88,8 @@ export interface Elder {
   pausedUntil?: string;
   privacy: { shareMedicines: boolean; shareWellbeing: boolean; shareMemories: boolean };
   consentId?: string;
+  /** Clinics the family has added (for the clinic-calling agent). */
+  clinics?: Clinic[];
   createdAt: string;
 }
 
@@ -204,6 +206,35 @@ export interface FamilyCall {
   at: string;
 }
 
+export interface Clinic {
+  clinicId: string;
+  name: string;
+  doctor: string;
+  phone: string;
+}
+
+export type AppointmentStatus = "requested" | "calling" | "confirmed" | "no_slot" | "failed" | "cancelled";
+
+/** Clinic-calling agent (plan.md P2-14): KaiseHo calls the clinic on the elder's behalf. */
+export interface Appointment {
+  elderId: string;
+  familyId: string;
+  appointmentId: string;
+  clinicId: string;
+  clinicName: string;
+  doctor: string;
+  preferred: string; // "Thursday morning" in the elder's words
+  reason: string; // only ever "follow-up visit"-level detail is shared with the clinic
+  status: AppointmentStatus;
+  slotLocalIso?: string;
+  slotSpoken?: string;
+  notes?: string;
+  requestedBy: string; // "elder" | "family:<memberId>"
+  mode?: "live" | "simulated";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Digest {
   familyId: string;
   elderId: string;
@@ -285,7 +316,7 @@ export type LiveEventType =
   | "tool.called" | "tool.rejected"
   | "alert.created" | "alert.notified" | "alert.acked"
   | "summary.ready" | "digest.ready" | "briefing.calling" | "demo.reset"
-  | "nudge.created" | "family_call.logged" | "schedule.updated" | "message.queued";
+  | "nudge.created" | "family_call.logged" | "schedule.updated" | "message.queued" | "appointment.updated";
 
 export interface LiveEvent {
   id: number;

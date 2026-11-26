@@ -10,6 +10,7 @@ import { setTelegramWebhook, telegramEnabled } from "./engine/notify/telegram";
 import { handleElevenLabsWebhook } from "./engine/postcall";
 import { handleAgentMcp } from "./mcp/agentServer";
 import { handleFamilyMcp } from "./mcp/familyServer";
+import { handleClinicMcp } from "./mcp/clinicServer";
 import { callElder, startDailyTicker } from "./packs/kaiseho/calls";
 import { kaisehoPostCall, startPurgeJob } from "./packs/kaiseho/postcall";
 import { DEMO, seedDemo } from "./packs/kaiseho/seed";
@@ -41,6 +42,7 @@ const agentAuth = requireToken(() => env.MCP_AGENT_TOKEN);
 /** Hackathon: one family token = Ravi (primary) of the demo family. Real sessions/OAuth later. */
 const familyAuth = requireToken(() => env.FAMILY_TOKEN_DEMO);
 const internalAuth = requireToken(() => env.INTERNAL_TOKEN);
+const clinicAuth = requireToken(() => env.CLINIC_MCP_TOKEN);
 
 // ---------- health ----------
 app.get("/health", async (c) =>
@@ -54,6 +56,7 @@ app.get("/health", async (c) =>
 
 // ---------- MCP: one brain, two doors ----------
 app.all("/mcp/agent", agentAuth, (c) => handleAgentMcp(c.req.raw));
+app.all("/mcp/clinic", clinicAuth, (c) => handleClinicMcp(c.req.raw));
 app.all("/mcp/family", familyAuth, (c) => handleFamilyMcp(c.req.raw, { familyId: DEMO.familyId, memberId: "mem_ravi", name: "Ravi" }));
 
 // ---------- webhooks ----------

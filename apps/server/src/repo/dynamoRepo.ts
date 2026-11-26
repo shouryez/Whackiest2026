@@ -4,7 +4,7 @@ import {
   type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 import type {
-  Alert, Audit, Call, CheckIn, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import type { Repo } from "./index";
@@ -169,6 +169,11 @@ export class DynamoRepo implements Repo {
     return (await this.byPrefix<Nudge>(`ELDER#${elderId}`, "NUDGE#")).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
   async putDigest(d: Digest) { await this.put({ pk: `ELDER#${d.elderId}`, sk: `DIGEST#${d.digestId}`, _t: "digest" }, d); }
+  async putAppointment(a: Appointment) { await this.put({ pk: `ELDER#${a.elderId}`, sk: `APPT#${a.appointmentId}`, _t: "appointment" }, a); }
+  async getAppointment(elderId: string, id: string) { return this.get<Appointment>(`ELDER#${elderId}`, `APPT#${id}`); }
+  async listAppointments(elderId: string) {
+    return (await this.byPrefix<Appointment>(`ELDER#${elderId}`, "APPT#")).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
   async listDigests(elderId: string) {
     return (await this.byPrefix<Digest>(`ELDER#${elderId}`, "DIGEST#")).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }

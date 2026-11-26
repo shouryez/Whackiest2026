@@ -11,6 +11,7 @@ import { storedToday, timeline, trends, weeklySummary } from "../family";
 import { conversationStarters, familyCallStats } from "../nudges";
 import { todayView } from "../views";
 import { doctorBrief, drillScore, refills } from "../health";
+import { requestAppointment } from "../clinic";
 
 /**
  * /mcp/family tools (plan.md Section 10.2): the child's door, used from Claude or any MCP client.
@@ -119,6 +120,22 @@ export const FAMILY_TOOLS = {
     description: "Medicine stock: days left for each medicine and when it runs out.",
     shape: { elder_id },
     spec: { name: "get_refills", tier: "T0", label: () => "💊 Family checked refills", run: async (_a, { elder }) => ({ refills: await refills(elder), scam_drills: await drillScore(elder) }) },
+  }),
+  book_appointment: t({
+    description: "Ask KaiseHo to call her clinic and book a follow-up (e.g. 'Thursday morning'). The clinic is told only her name and 'follow-up visit'; she hears the slot in her next call.",
+    shape: { elder_id, preferred: z.string().min(2).max(80), note: z.string().max(120).optional() },
+    spec: {
+      name: "book_appointment", tier: "T2", label: (a) => `🏥 Family asked to book ${a.preferred}`,
+      run: async (a, { elder, actor }) => {
+        const appt = await requestAppointment(elder, { preferred: a.preferred, reason: a.note, requestedBy: actor });
+        return { ok: true, appointment_id: appt.appointmentId, note: `Calling ${appt.clinicName} now; you'll get the confirmed time here and on Telegram.` };
+      },
+    },
+  }),
+  get_appointments: t({
+    description: "Doctor appointments KaiseHo has booked or is booking.",
+    shape: { elder_id },
+    spec: { name: "get_appointments", tier: "T0", label: () => "🏥 Family checked appointments", run: async (_a, { elder }) => ({ appointments: (await getRepo().listAppointments(elder.elderId)).slice(0, 6).map((x) => ({ id: x.appointmentId, clinic: x.clinicName, doctor: x.doctor, status: x.status, slot: x.slotSpoken ?? x.preferred })) }) },
   }),
   get_call_history: t({
     description: "Recent check-in calls with their summaries.",

@@ -51,6 +51,8 @@ export function toFeed(ev: LiveEvent): FeedItem | null {
       return { ...base, kind: "system", text: `Message from ${p.message?.fromName} queued for the next call`, detail: p.message?.text };
     case "schedule.updated":
       return { ...base, kind: "system", text: `Schedule updated by ${p.by}`, detail: [p.status, p.pausedUntil && `until ${p.pausedUntil}`, p.callTimeLocal && `at ${p.callTimeLocal}`].filter(Boolean).join(" · ") };
+    case "appointment.updated":
+      return { ...base, kind: p.appointment?.status === "confirmed" ? "ack" : p.appointment?.status === "no_slot" || p.appointment?.status === "failed" ? "alert" : "system", text: p.label ?? "Appointment updated", detail: p.appointment?.mode === "simulated" ? "simulated clinic call" : undefined };
     case "demo.reset":
       return { ...base, kind: "system", text: p.deleted ? "All family data deleted" : "Demo family seeded · 14 days of labelled demo history" };
     default:

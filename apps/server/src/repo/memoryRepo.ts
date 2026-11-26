@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
 } from "@kaiseho/shared";
 import type { Repo } from "./index";
 
@@ -22,6 +22,7 @@ export class MemoryRepo implements Repo {
   private familyCalls: FamilyCall[] = [];
   private nudges = new Map<string, Nudge>();
   private digests: Digest[] = [];
+  private appointments = new Map<string, Appointment>();
 
   async putFamily(f: Family) { this.families.set(f.familyId, f); }
   async getFamily(id: string) { return this.families.get(id); }
@@ -71,6 +72,9 @@ export class MemoryRepo implements Repo {
   async listFamilyCalls(elderId: string, since?: string) { return this.familyCalls.filter((f) => f.elderId === elderId && (!since || f.at >= since)); }
   async putNudge(n: Nudge) { this.nudges.set(n.nudgeId, n); }
   async putDigest(d: Digest) { this.digests = this.digests.filter((x) => x.digestId !== d.digestId); this.digests.push(d); }
+  async putAppointment(a: Appointment) { this.appointments.set(a.appointmentId, a); }
+  async getAppointment(elderId: string, id: string) { const a = this.appointments.get(id); return a?.elderId === elderId ? a : undefined; }
+  async listAppointments(elderId: string) { return [...this.appointments.values()].filter((a) => a.elderId === elderId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async listDigests(elderId: string) { return this.digests.filter((d) => d.elderId === elderId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async listNudges(elderId: string) {
     return [...this.nudges.values()].filter((n) => n.elderId === elderId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -109,6 +113,7 @@ export class MemoryRepo implements Repo {
     this.familyCalls = this.familyCalls.filter((f) => f.familyId !== familyId);
     for (const [k, n] of this.nudges) if (elderIds.has(n.elderId)) this.nudges.delete(k);
     this.digests = this.digests.filter((d) => d.familyId !== familyId);
+    for (const [k, a] of this.appointments) if (a.familyId === familyId) this.appointments.delete(k);
     for (const [k, a] of this.alerts) if (a.familyId === familyId) this.alerts.delete(k);
     for (const [k, m] of this.members) if (m.familyId === familyId) this.members.delete(k);
     this.families.delete(familyId);
@@ -117,6 +122,6 @@ export class MemoryRepo implements Repo {
   async clearAll() {
     for (const m of [this.families, this.members, this.elders, this.meds, this.medLogs, this.checkIns, this.calls, this.memories, this.alerts, this.messages]) m.clear();
     this.audit = [];
-    this.turns.clear(); this.consents = []; this.reminders.clear(); this.familyCalls = []; this.nudges.clear(); this.digests = [];
+    this.turns.clear(); this.consents = []; this.reminders.clear(); this.familyCalls = []; this.nudges.clear(); this.digests = []; this.appointments.clear();
   }
 }

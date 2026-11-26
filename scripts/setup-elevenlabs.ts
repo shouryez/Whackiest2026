@@ -50,6 +50,8 @@ function die(msg: string): never {
 if (!KEY) die("ELEVENLABS_API_KEY is empty in apps/server/.env. Paste your key there first.");
 if (!PUBLIC.startsWith("https://")) die(`PUBLIC_BASE_URL must be your https tunnel URL (run "pnpm tunnel"). Now: "${PUBLIC || "(empty)"}"`);
 if (!env.MCP_AGENT_TOKEN || !env.FAMILY_TOKEN_DEMO) die("MCP_AGENT_TOKEN / FAMILY_TOKEN_DEMO missing in .env.");
+// The clinic agent gets its own door + token (generated once).
+if (!env.CLINIC_MCP_TOKEN || env.CLINIC_MCP_TOKEN === "dev-clinic-token") saveEnv("CLINIC_MCP_TOKEN", (await import("node:crypto")).randomBytes(24).toString("hex"));
 
 async function el<T = Record<string, unknown>>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -278,6 +280,7 @@ async function main() {
   const voice = await ensureVoice();
   const agentMcp = await ensureMcp("ELEVENLABS_MCP_AGENT_SERVER_ID", "KaiseHo Agent Tools", "/mcp/agent", env.MCP_AGENT_TOKEN);
   const familyMcp = await ensureMcp("ELEVENLABS_MCP_FAMILY_SERVER_ID", "KaiseHo Family Tools", "/mcp/family", env.FAMILY_TOKEN_DEMO);
+  const clinicMcp = await ensureMcp("ELEVENLABS_MCP_CLINIC_SERVER_ID", "KaiseHo Clinic Tools", "/mcp/clinic", env.CLINIC_MCP_TOKEN);
 
   const callerPrompt = read("agent/kaiseho-caller.prompt.md");
   const callerId = await upsertAgent("ELEVENLABS_AGENT_ID", "kaiseho-caller", {
@@ -304,6 +307,19 @@ async function main() {
     // ElevenLabs rule: English agents must use turbo/flash v2 (non-English agents use v2.5+).
     tts: { voice_id: voice, model_id: "eleven_flash_v2" },
     conversation: { max_duration_seconds: 240 },
+  });
+
+  // Clinic-calling agent (P2-14): English, its own narrow MCP door.
+  const clinicPrompt = extractFenced(read("agent/kaiseho-clinic.prompt.md"));
+  await upsertAgent("ELEVENLABS_CLINIC_AGENT_ID", "kaiseho-clinic", {
+    agent: {
+      first_message: "Hello, I'm an AI assistant calling from KaiseHo on behalf of {{patient_name}}, a patient of {{doctor}}. Could I book a follow-up appointment, please?",
+      language: "en",
+      prompt: { prompt: clinicPrompt, llm: LLM, mcp_server_ids: [clinicMcp] },
+      dynamic_variables: { dynamic_variable_placeholders: { appointment_id: "appt_test", elder_id: "eld_lakshmi", patient_name: "Lakshmi", doctor: "Dr. Rao", clinic_name: "Rao Clinic, Mysuru", preferred_time: "Thursday morning", reason: "a follow-up visit", today_local: "Monday", suggested_slot: "2026-12-03T10:30" } },
+    },
+    tts: { voice_id: voice, model_id: "eleven_flash_v2" },
+    conversation: { max_duration_seconds: 180 },
   });
 
   // Agents now point at the fresh MCP servers: remove the stale ones.

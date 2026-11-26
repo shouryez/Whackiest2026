@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { DigestCard } from "@/components/DigestCard";
 import { HealthCard } from "@/components/HealthCard";
+import { AppointmentsCard, PrescriptionCard } from "@/components/CareCards";
 import { AdherenceChart, MoodPainChart, SummaryBlock, TodayCard } from "@/components/cards";
 import { Avatar, Badge, Button, Card, CardHeader, Empty, Skeleton, cx } from "@/components/ui";
 import { api, post, type Memory, type Message, type Profile, type TimelineCall, type TodayView, type TrendPoint } from "@/lib/api";
@@ -236,7 +237,13 @@ export default function ElderPage() {
         </div>
       </div>
 
-      <section id="health" className="scroll-mt-24"><HealthCard elderId={id} /></section>
+      <div id="health" className="grid scroll-mt-24 gap-5 lg:grid-cols-2">
+        <HealthCard elderId={id} />
+        <div className="space-y-5">
+          <AppointmentsCard elderId={id} name={e.preferredName} />
+          <PrescriptionCard elderId={id} onSaved={reloadProfile} />
+        </div>
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section id="messages" className="scroll-mt-24"><MessagesPanel elderId={id} /></section>

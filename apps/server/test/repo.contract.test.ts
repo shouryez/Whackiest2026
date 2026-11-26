@@ -93,6 +93,16 @@ describe.each(engines)("%s", (_name, make) => {
     expect(JSON.stringify(await repo.listTurns("call_contract"))).not.toContain("123456");
   });
 
+  it("appointments round-trip (clinic agent)", async () => {
+    const now = new Date().toISOString();
+    const base = { elderId: DEMO.elderId, familyId: DEMO.familyId, clinicId: "clinic_rao", clinicName: "Rao Clinic", doctor: "Dr. Rao", preferred: "Thursday morning", reason: "follow-up visit", requestedBy: "elder", createdAt: now, updatedAt: now };
+    await repo.putAppointment({ ...base, appointmentId: "appt_a", status: "calling" });
+    await repo.putAppointment({ ...base, appointmentId: "appt_b", status: "confirmed", slotLocalIso: "2026-12-03T10:30", createdAt: new Date(Date.now() + 1000).toISOString() });
+    expect((await repo.getAppointment(DEMO.elderId, "appt_a"))?.status).toBe("calling");
+    expect((await repo.listAppointments(DEMO.elderId)).map((a) => a.appointmentId)).toEqual(["appt_b", "appt_a"]);
+    expect((await repo.getElder(DEMO.elderId))?.clinics?.[0].doctor).toBe("Dr. Rao");
+  });
+
   it("privacy holds across engines: private memories never reach family views", async () => {
     const elder = (await repo.getElder(DEMO.elderId))!;
     const { memories, privateCount } = await filterForFamily(elder);
@@ -113,5 +123,6 @@ describe.each(engines)("%s", (_name, make) => {
     expect(await repo.listMemories(DEMO.elderId)).toHaveLength(0);
     expect(await repo.listAlerts(DEMO.familyId)).toHaveLength(0);
     expect(await repo.listAudit(DEMO.elderId)).toHaveLength(0);
+    expect(await repo.listAppointments(DEMO.elderId)).toHaveLength(0);
   });
 });

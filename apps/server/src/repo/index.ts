@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Reminder, Turn,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import { DynamoRepo } from "./dynamoRepo";
@@ -54,6 +54,9 @@ export interface Repo {
   putNudge(n: Nudge): Promise<void>;
   putDigest(d: Digest): Promise<void>;
   listDigests(elderId: string): Promise<Digest[]>;
+  putAppointment(a: Appointment): Promise<void>;
+  getAppointment(elderId: string, appointmentId: string): Promise<Appointment | undefined>;
+  listAppointments(elderId: string): Promise<Appointment[]>;
   listNudges(elderId: string): Promise<Nudge[]>;
 
   // memories
