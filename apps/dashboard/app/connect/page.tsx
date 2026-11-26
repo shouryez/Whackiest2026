@@ -1,6 +1,6 @@
 "use client";
 import { Bot, Check, Copy, MessageCircle, Phone } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge, Card, CardHeader, PageTitle } from "@/components/ui";
 import { API, TOKEN, type Integrations, type Overview } from "@/lib/api";
 import { useApi } from "@/lib/live";
@@ -18,6 +18,9 @@ function CopyBox({ value }: { value: string }) {
 export default function ConnectPage() {
   const { data: ov } = useApi<Overview>("/family/overview");
   const { data: integ } = useApi<Integrations>("/health/integrations");
+  // Claude runs in the cloud, so it needs the public (tunnel / AWS) URL, not localhost.
+  const [mcp, setMcp] = useState(`${API}/mcp/family`);
+  useEffect(() => { fetch(`${API}/health`).then((r) => r.json()).then((h) => h.mcpFamily && setMcp(h.mcpFamily)).catch(() => {}); }, []);
   return (
     <div>
       <PageTitle kicker="One brain, two doors" title="Connect" />
@@ -25,11 +28,13 @@ export default function ConnectPage() {
         <Card>
           <CardHeader icon={Bot} tone="navy" kicker="Door 2 · for you" title="Ask Claude about Amma" />
           <p className="text-sm text-muted">Add KaiseHo as a custom MCP connector. Then ask “How was Amma this week?”, “What should I talk to her about tonight?”, or “Her doctor added Telmisartan 40 mg at 9 PM”.</p>
-          <p className="mt-4 mb-1 text-xs font-bold uppercase tracking-wider text-muted">Server URL</p>
-          <CopyBox value={`${API}/mcp/family`} />
-          <p className="mt-3 mb-1 text-xs font-bold uppercase tracking-wider text-muted">Header</p>
-          <CopyBox value={`Authorization: Bearer ${TOKEN}`} />
-          <p className="mt-3 text-xs text-muted">Claude Desktop alternative: <code>npx mcp-remote {API}/mcp/family --header "Authorization: Bearer …"</code>. Use the public tunnel URL instead of localhost.</p>
+          <p className="mt-4 mb-1 text-xs font-bold uppercase tracking-wider text-muted">claude.ai → Settings → Connectors → Add custom connector (URL)</p>
+          <CopyBox value={`${mcp}?token=${TOKEN}`} />
+          <p className="mt-3 mb-1 text-xs font-bold uppercase tracking-wider text-muted">Claude Code (terminal)</p>
+          <CopyBox value={`claude mcp add --transport http kaiseho ${mcp} --header "Authorization: Bearer ${TOKEN}"`} />
+          <p className="mt-3 mb-1 text-xs font-bold uppercase tracking-wider text-muted">Claude Desktop (claude_desktop_config.json → mcpServers)</p>
+          <CopyBox value={`"kaiseho": { "command": "npx", "args": ["-y", "mcp-remote", "${mcp}", "--header", "Authorization: Bearer ${TOKEN}"] }`} />
+          <p className="mt-3 text-xs text-muted">These contain your family token: don't share them. The tunnel URL changes when it restarts; on AWS it stays fixed.</p>
         </Card>
         <Card>
           <CardHeader icon={MessageCircle} tone="saffron" kicker="Alerts on your phone" title="Link Telegram" />
