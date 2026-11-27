@@ -5,6 +5,9 @@ import { getRepo } from "../../repo";
 import { nextDrill } from "./health";
 import { occasionsNote } from "./occasions";
 import { pensionNote } from "./pension";
+import { conversationPlan } from "./wellbeing";
+import { vitalsNote } from "./vitals";
+import { needsNote } from "./needs";
 
 /**
  * Context builder (plan.md Section 12.3): everything the agent needs, pushed as
@@ -71,6 +74,9 @@ export async function buildContext(
     weather_note: await weatherNote(elder.city, elder.lat, elder.lon),
     reminder_text: extras.reminder_text ?? "",
     scam_drill: drill ? `[id:${drill.id}] Ask: "${drill.q}" Safe answer: ${drill.good}` : "none",
+    today_topics: reason === "daily" || reason === "checkin" ? await conversationPlan(elder, today) : "none",
+    vitals_note: reason === "daily" || reason === "checkin" ? await vitalsNote(elder) : "none",
+    needs_update: reason === "reminder" || reason === "quicktest" ? "none" : await needsNote(elder, today),
     pension_note: reason === "daily" || reason === "checkin" ? pensionNote(elder, primary?.name ?? "the family", today) : "none",
     occasions: reason === "reminder" || reason === "quicktest" ? "none" : await occasionsNote(elder, today),
     privacy_note: privateTopics.length ? `She asked to keep some ${[...new Set(privateTopics)].join("/")} topics private. Never bring them up or share them.` : "none",

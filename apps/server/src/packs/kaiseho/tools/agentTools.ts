@@ -9,6 +9,7 @@ import { createAlert } from "../alerts";
 import { adviceFor } from "../scam/advice";
 import { classifyScam } from "../scam/classifier";
 import { checkRefill } from "../health";
+import { createReminder, upcomingReminders } from "../reminders";
 
 /**
  * Agent tools for /mcp/agent (plan.md Section 10.1). Phase 0 set:
@@ -68,9 +69,17 @@ export const log_medication: AgentTool<typeof logMedicationShape> = {
         await repo.putMedication(med);
         await checkRefill(elder, med);
       }
+      // Critical medicine not taken yet: one short follow-up call in 45 minutes (never from a simulated call).
+      let followUp: string | undefined;
+      const call = await ensureCall(elder.elderId, a.call_id);
+      if (med?.critical && a.status !== "taken" && call.mode !== "simulated" && hour < 22) {
+        const text = `your ${med.name} (${a.slot})`;
+        const already = (await upcomingReminders(elder)).some((r) => r.text === text);
+        if (!already) { const r = await createReminder(elder, { kind: "reminder", text, when: new Date(Date.now() + 45 * 60_000), createdBy: "system" }).catch(() => undefined); followUp = r?.whenSpoken; }
+      }
       const due = meds.reduce((n, m) => n + m.slots.length, 0);
       const taken = (await repo.listMedLogs(elder.elderId, date)).filter((l) => l.date === date && l.status === "taken").length;
-      return { ok: true, adherence_today: `${taken}/${due}` };
+      return { ok: true, adherence_today: `${taken}/${due}`, ...(followUp ? { follow_up: `I'll give her a quick reminder call ${followUp}. Tell her kindly.` } : {}) };
     },
   },
 };
@@ -78,15 +87,18 @@ export const log_medication: AgentTool<typeof logMedicationShape> = {
 // ---------------- log_wellbeing (T1) ----------------
 const logWellbeingShape = {
   elder_id, call_id,
-  mood: z.number().int().min(1).max(5).optional().describe("1 very low … 5 very good"),
+  mood: z.number().int().min(1).max(5).optional().describe("Your read of her mood from how she sounds and what she says (1 very low … 5 very happy). Never ask her for a number."),
   sleep: z.enum(["good", "ok", "poor"]).optional(),
-  pain: z.object({ where: z.string().max(60), level: z.number().int().min(0).max(10) }).optional(),
+  pain: z.object({ where: z.string().max(60), level: z.number().int().min(0).max(10) }).optional().describe("Ask 'how bad, a little or a lot?' and map to 0-10"),
   energy: z.number().int().min(1).max(5).optional(),
-  appetite: z.enum(["good", "low"]).optional(),
+  appetite: z.enum(["good", "ok", "low"]).optional().describe("From what she ate today: proper meals = good, light = ok, skipped/tea only = low"),
+  social: z.enum(["met_people", "phone_only", "alone"]).optional().describe("Did she meet anyone in person today, only talk on the phone, or was she alone"),
+  activity: z.enum(["went_out", "active_home", "rested"]).optional().describe("Went out (walk, temple, market) / busy at home / rested most of the day"),
+  highlight: z.string().max(140).optional().describe("One good moment she shared, in a few words, e.g. 'the jasmine bloomed'"),
   note: z.string().max(200).optional(),
 };
 export const log_wellbeing: AgentTool<typeof logWellbeingShape> = {
-  description: "Log how the elder is today: mood 1-5, sleep, pain (where + 0-10), energy, appetite. Call whenever you learn any of these; repeated calls merge.",
+  description: "Log how she is today, inferred from natural conversation (never ask for ratings): mood, sleep, pain, appetite (what she ate), social (who she saw), activity (did she go out), and one good moment. Call whenever you learn any of these; repeated calls merge.",
   shape: logWellbeingShape,
   spec: {
     name: "log_wellbeing",
@@ -97,7 +109,10 @@ export const log_wellbeing: AgentTool<typeof logWellbeingShape> = {
         a.sleep ? `slept ${a.sleep}` : "",
         a.pain ? `${a.pain.where} pain ${a.pain.level}/10` : "",
         a.energy !== undefined ? `energy ${a.energy}/5` : "",
-        a.appetite ? `appetite ${a.appetite}` : "",
+        a.appetite ? `ate ${a.appetite === "good" ? "well" : a.appetite === "ok" ? "lightly" : "little"}` : "",
+        a.social ? { met_people: "met people", phone_only: "phone only", alone: "alone today" }[a.social] : "",
+        a.activity ? { went_out: "went out", active_home: "busy at home", rested: "rested" }[a.activity] : "",
+        a.highlight ? `✨ "${a.highlight}"` : "",
       ].filter(Boolean);
       return `🙂 Logged wellbeing: ${parts.join(" · ") || "note"}`;
     },
@@ -109,6 +124,8 @@ export const log_wellbeing: AgentTool<typeof logWellbeingShape> = {
         elderId: elder.elderId, callId: a.call_id, date: localDate(elder.tz),
         mood: a.mood ?? prev?.mood, sleep: a.sleep ?? prev?.sleep, pain: a.pain ?? prev?.pain,
         energy: a.energy ?? prev?.energy, appetite: a.appetite ?? prev?.appetite,
+        social: a.social ?? prev?.social, activity: a.activity ?? prev?.activity,
+        highlight: a.highlight ? redactPII(a.highlight) : prev?.highlight,
         notes: [prev?.notes, a.note ? redactPII(a.note) : undefined].filter(Boolean).join(" · ") || undefined,
         updatedAt: nowIso(),
       });

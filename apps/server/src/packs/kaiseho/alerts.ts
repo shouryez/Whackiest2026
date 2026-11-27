@@ -20,6 +20,9 @@ function recipients(members: Member[], severity: Severity, type: AlertType, to?:
   if (type === "message") return members.filter((m) => m.role !== "neighbour" && (!to || to.includes(m.name)));
   // Practical news (bookings, pension, occasions) goes to the primary contact, whatever its severity.
   if (type === "appointment" || type === "pension" || type === "occasion") return members.filter((m) => m.role === "primary");
+  // Household needs: every child, so whoever is free can claim it.
+  if (type === "need") return members.filter((m) => m.role === "primary" || m.role === "secondary");
+  if (type === "vital" && severity === "watch") return members.filter((m) => m.role === "primary");
   if (severity === "urgent") {
     return members.filter((m) => m.role === "primary" || (m.role === "secondary" && type === "scam"));
   }
@@ -78,7 +81,8 @@ export async function createAlert(input: {
       const chatId = chatIdFor(m);
       const buttons = alert.severity === "urgent" || alert.severity === "emergency"
         ? [[{ text: "✓ Acknowledge", callback_data: `ack:${alert.alertId}` }, { text: `📞 Call ${input.elder.preferredName} now`, callback_data: `callnow:${alert.elderId}` }]]
-        : alert.type === "message" ? [[{ text: "☎️ I called her", callback_data: `called:${alert.elderId}` }]] : undefined;
+        : alert.type === "message" ? [[{ text: "☎️ I called her", callback_data: `called:${alert.elderId}` }]]
+        : alert.type === "need" ? [[{ text: "🙋 I'll handle it", callback_data: `needs:${alert.elderId}` }]] : undefined;
       const ok = chatId ? await sendTelegram(chatId, text, buttons) : false;
       const channel = `telegram:${m.name}`;
       if (ok) alert.notifiedVia.push(channel);

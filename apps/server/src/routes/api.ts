@@ -29,6 +29,14 @@ import { cancelReminder, createReminder, localToUtc, upcomingReminders } from ".
 import { addOccasion, upcomingOccasions } from "../packs/kaiseho/occasions";
 import { lifeCertStatus, logLifeCert } from "../packs/kaiseho/pension";
 import { sharedReadback } from "../packs/kaiseho/transparency";
+import { wellbeingReport } from "../packs/kaiseho/wellbeing";
+import { insightCards } from "../packs/kaiseho/aiInsights";
+import { logVital, vitalsSummary } from "../packs/kaiseho/vitals";
+import { addNeeds, claimNeed, completeNeed, gasStatus } from "../packs/kaiseho/needs";
+import { callRota } from "../packs/kaiseho/rota";
+import { cardUrl, ensureCardToken } from "../packs/kaiseho/card";
+import { llmTranscribe } from "../engine/llm";
+import { putBlob } from "../engine/storage";
 
 /** Dashboard REST API (plan.md Section 12.1). Family-scoped; every output via filterForFamily. */
 export const api = new Hono();
@@ -274,6 +282,89 @@ api.post("/elders/:id/pension/life-cert", async (c) => {
 
 // ---------- transparency (P2-13): what she hears when she asks "what did you tell Ravi?" ----------
 api.get("/elders/:id/shared-readback", async (c) => c.json(await sharedReadback(await elderOr404(c.req.param("id")), Number(c.req.query("days") ?? 3))));
+
+// ---------- wellbeing intelligence ----------
+api.get("/elders/:id/wellbeing", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  if (!e.privacy.shareWellbeing) return c.json({ error: "She chose not to share wellbeing" }, 403);
+  return c.json(await wellbeingReport(e, Number(c.req.query("days") ?? 30)));
+});
+api.get("/elders/:id/insights", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  return c.json(await insightCards(e, { fresh: c.req.query("fresh") === "1" }));
+});
+
+// ---------- home readings ----------
+api.get("/elders/:id/vitals", async (c) => c.json(await vitalsSummary(await elderOr404(c.req.param("id")), Number(c.req.query("days") ?? 30))));
+api.post("/elders/:id/vitals", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ kind: z.enum(["sugar", "bp", "weight", "spo2", "temperature"]), value: z.number(), value2: z.number().optional(), context: z.enum(["fasting", "after_food", "random", "morning", "evening"]).optional() }).parse(await c.req.json());
+  return c.json(await logVital(e, { ...b, source: "family" }));
+});
+api.patch("/elders/:id/health-profile", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const range = z.tuple([z.number(), z.number()]);
+  const b = z.object({
+    allergies: z.array(z.string().max(40)).max(10).optional(), bloodGroup: z.string().max(4).optional(),
+    vitalsTracked: z.array(z.enum(["sugar", "bp", "weight", "spo2", "temperature"])).optional(),
+    vitalTargets: z.object({ sugarFasting: range, sugarAfterFood: range, bpSystolic: range, bpDiastolic: range, spo2Min: z.number() }).partial().optional(),
+    criticalMedIds: z.array(z.string()).optional(),
+  }).parse(await c.req.json());
+  const { criticalMedIds, ...rest } = b;
+  Object.assign(e, rest);
+  await repo.putElder(e);
+  if (criticalMedIds) for (const m of await repo.listMedications(e.elderId)) { m.critical = criticalMedIds.includes(m.medId); await repo.putMedication(m); }
+  return c.json({ ok: true });
+});
+
+// ---------- household needs ----------
+const WHO = "Ravi"; // hackathon: the dashboard user is the primary child
+api.get("/elders/:id/needs", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  return c.json({ needs: await repo.listNeeds(e.elderId), gas: gasStatus(e) });
+});
+api.post("/elders/:id/needs", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ item: z.string().min(2).max(60) }).parse(await c.req.json());
+  return c.json(await addNeeds(e, [{ item: b.item }], "family"));
+});
+api.post("/elders/:id/needs/:nid/:action{claim|done}", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ by: z.string().max(40).optional() }).parse(await c.req.json().catch(() => ({})));
+  const by = b.by ?? WHO;
+  const n = c.req.param("action") === "done" ? await completeNeed(e, c.req.param("nid"), by) : await claimNeed(e, c.req.param("nid"), by);
+  return c.json({ ok: true, need: n });
+});
+
+// ---------- sibling call rota ----------
+api.get("/elders/:id/rota", async (c) => c.json(await callRota(await elderOr404(c.req.param("id")))));
+
+// ---------- voice notes from grandchildren (Gemini transcribes; KaiseHo says it in the call) ----------
+api.post("/elders/:id/voice-note", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ audio: z.string().max(4_000_000), fromName: z.string().min(1).max(40), relation: z.string().max(30).optional() }).parse(await c.req.json());
+  const m = b.audio.match(/^data:(audio\/[\w.+-]+)(?:;[^,]*)?;base64,(.+)$/);
+  if (!m) return c.json({ error: "Send the recording as a base64 data URL" }, 400);
+  const mime = m[1].replace("audio/x-m4a", "audio/mp4");
+  const text = await llmTranscribe({ mimeType: mime.split(";")[0], base64: m[2] }, `From ${b.fromName}${b.relation ? ` (${b.relation})` : ""} to ${e.preferredName}.`);
+  if (!text) return c.json({ error: "Couldn't understand the recording (needs the Gemini key). You can type the message instead." }, 422);
+  const id = newId("vn");
+  const ext = mime.includes("ogg") ? "ogg" : mime.includes("mp4") || mime.includes("m4a") ? "m4a" : mime.includes("wav") ? "wav" : "webm";
+  const key = `voice/${id}.${ext}`;
+  await putBlob(key, Buffer.from(m[2], "base64"), mime);
+  const msg = { elderId: e.elderId, messageId: newId("msg"), direction: "to_elder" as const, fromName: b.fromName, relation: b.relation, kind: "voice" as const, audioKey: key, text: redactPII(text).slice(0, 400), delivered: false, createdAt: nowIso() };
+  await repo.putMessage(msg);
+  emit("message.queued", e.familyId, { message: msg, label: `🎙️ Voice note from ${b.fromName}: "${msg.text.slice(0, 60)}"` }, e.elderId);
+  return c.json({ ok: true, message: msg, note: `KaiseHo will tell ${e.preferredName} in the next call.` });
+});
+
+// ---------- emergency health card ----------
+api.post("/elders/:id/card", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ rotate: z.boolean().optional() }).parse(await c.req.json().catch(() => ({})));
+  await ensureCardToken(e, b.rotate);
+  return c.json({ url: cardUrl(e), qr: `/card/${e.elderId}/qr.svg?k=${e.cardToken}` });
+});
 
 // ---------- weekly audio digest ----------
 api.get("/elders/:id/digests", async (c) => c.json((await repo.listDigests((await elderOr404(c.req.param("id"))).elderId)).slice(0, 6)));

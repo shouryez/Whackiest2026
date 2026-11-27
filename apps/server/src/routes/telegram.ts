@@ -6,6 +6,7 @@ import { callElder } from "../packs/kaiseho/calls";
 import { DEMO } from "../packs/kaiseho/seed";
 import { logFamilyCall } from "../packs/kaiseho/nudges";
 import { getRepo } from "../repo";
+import { claimAllOpen } from "../packs/kaiseho/needs";
 
 /**
  * Telegram bot webhook (plan.md Section 12.5): /start <code> links a family member's chat;
@@ -54,6 +55,10 @@ telegramRoutes.post("/:secret", async (c) => {
         const elder = await repo.getElder(id);
         if (elder) await callElder(elder, "checkin");
         await answerCallback(cb.id, "KaiseHo is calling her now 📞");
+      } else if (action === "needs") {
+        const elder = await repo.getElder(id);
+        const n = elder ? await claimAllOpen(elder, who.name) : 0;
+        await answerCallback(cb.id, n ? `Thank you ❤️ You're handling ${n} item${n === 1 ? "" : "s"}. KaiseHo will tell her.` : "Already covered ✓");
       } else if (action === "called") {
         const elder = await repo.getElder(id);
         if (elder) await logFamilyCall(elder, who.name, "button");

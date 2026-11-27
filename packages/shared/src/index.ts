@@ -17,7 +17,7 @@ export type Severity = z.infer<typeof Severity>;
 
 export const AlertType = z.enum([
   "scam", "emergency", "no_answer", "missed_meds", "low_mood", "refill", "pause", "message", "health_change", "appointment",
-  "pension", "occasion",
+  "pension", "occasion", "vital", "need",
 ]);
 export type AlertType = z.infer<typeof AlertType>;
 
@@ -93,6 +93,16 @@ export interface Elder {
   clinics?: Clinic[];
   /** Pension life certificate (Jeevan Pramaan), due every November (plan.md P2-9). */
   pension?: PensionInfo;
+  /** Emergency health card (QR for neighbours / paramedics). */
+  allergies?: string[];
+  bloodGroup?: string;
+  cardToken?: string;
+  /** Readings she checks at home and can tell KaiseHo by voice. */
+  vitalsTracked?: VitalKind[];
+  /** Her doctor's ranges (defaults are general adult ranges, not medical advice). */
+  vitalTargets?: Partial<VitalTargets>;
+  /** LPG cylinder: last refill date and her usual interval, to ask before it runs out. */
+  gas?: { lastRefill?: string; intervalDays?: number };
   createdAt: string;
 }
 
@@ -109,6 +119,8 @@ export interface Medication {
   refillThresholdDays?: number;
   active: boolean;
   addedBy: string;
+  /** Critical medicines get a short follow-up call when a dose isn't taken yet. */
+  critical?: boolean;
 }
 
 export interface MedLog {
@@ -132,7 +144,13 @@ export interface CheckIn {
   sleep?: "good" | "ok" | "poor";
   pain?: { where: string; level: number };
   energy?: number;
-  appetite?: "good" | "low";
+  appetite?: "good" | "ok" | "low";
+  /** Who she saw or spoke to today (from natural conversation, not a rating). */
+  social?: "met_people" | "phone_only" | "alone";
+  /** Did she step out or move about today. */
+  activity?: "went_out" | "active_home" | "rested";
+  /** One good moment she shared ("the jasmine bloomed"). */
+  highlight?: string;
   notes?: string;
   /** Weekly scam "vaccine" drill asked in this call (plan.md P2-7). */
   scamDrill?: { id: string; question: string; passed: boolean; answer?: string };
@@ -166,6 +184,8 @@ export interface Call {
   mode?: "live" | "simulated" | "browser";
   summary?: CallSummary;
   qualityChecks?: Record<string, boolean>;
+  /** Voice vitality from turn timings: speaking pace and how long she takes to reply. */
+  voice?: { wpm: number; replyGapSec: number; turns: number };
 }
 
 export interface Turn {
@@ -200,6 +220,49 @@ export interface Reminder {
   createdAt: string;
   /** "elder" (asked in a call) or "family:<memberId>". */
   createdBy?: string;
+}
+
+export type VitalKind = "sugar" | "bp" | "weight" | "spo2" | "temperature";
+export interface VitalTargets {
+  sugarFasting: [number, number];
+  sugarAfterFood: [number, number];
+  bpSystolic: [number, number];
+  bpDiastolic: [number, number];
+  spo2Min: number;
+}
+/** A home reading she tells KaiseHo ("sugar was 140 this morning", "BP 150 by 90"). */
+export interface Vital {
+  elderId: string;
+  vitalId: string;
+  kind: VitalKind;
+  value: number;
+  /** Diastolic for BP. */
+  value2?: number;
+  unit: string;
+  context?: "fasting" | "after_food" | "random" | "morning" | "evening";
+  date: string;
+  measuredAt: string;
+  status: "normal" | "high" | "low" | "very_high" | "very_low";
+  source: "voice" | "family";
+  callId?: string;
+}
+
+export type NeedCategory = "groceries" | "medicine" | "gas" | "household" | "repair" | "other";
+/** Household needs she mentions ("atta is finishing", "the cylinder is low"); a sibling claims it. */
+export interface Need {
+  elderId: string;
+  familyId: string;
+  needId: string;
+  item: string;
+  category: NeedCategory;
+  urgency: "normal" | "soon";
+  status: "open" | "claimed" | "done";
+  claimedBy?: string;
+  /** What the elder has already been told ("claimed" = someone is arranging it, "done"). */
+  elderToldStatus?: "claimed" | "done";
+  createdAt: string;
+  updatedAt: string;
+  source: "voice" | "family";
 }
 
 export type LifeCertStatus = "pending" | "done" | "not_yet" | "needs_help";
@@ -329,6 +392,10 @@ export interface Message {
   direction: "to_elder" | "from_elder";
   fromName: string;
   text: string;
+  /** Voice notes (grandchildren): audio kept for the family; the transcript is what KaiseHo says in the call. */
+  kind?: "text" | "voice";
+  audioKey?: string;
+  relation?: string;
   delivered: boolean;
   deliveredAt?: string;
   createdAt: string;
@@ -352,7 +419,7 @@ export type LiveEventType =
   | "tool.called" | "tool.rejected"
   | "alert.created" | "alert.notified" | "alert.acked"
   | "summary.ready" | "digest.ready" | "briefing.calling" | "demo.reset"
-  | "nudge.created" | "family_call.logged" | "schedule.updated" | "message.queued" | "appointment.updated";
+  | "nudge.created" | "family_call.logged" | "schedule.updated" | "message.queued" | "appointment.updated" | "need.updated" | "vital.logged";
 
 export interface LiveEvent {
   id: number;

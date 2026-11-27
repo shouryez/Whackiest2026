@@ -4,7 +4,7 @@ import {
   type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 import type {
-  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Nudge, Occasion, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Need, Nudge, Occasion, Reminder, Turn, Vital,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import type { Repo } from "./index";
@@ -17,6 +17,7 @@ import type { Repo } from "./index";
  *   ELDERS             ELDER#e  (index of every elder, for schedulers)
  *   ELDER#e            META                        FAMILY#f             ELDER#e
  *   ELDER#e            MED#id | MEDLOG#date#med#slot | CHECKIN#call | CALL#call | MEM#id | MSG#id
+ *                      VITAL#date#id | NEED#id
  *                      AUDIT#ts#seq | CONSENT#ts | REM#id | FCALL#at#id | NUDGE#id | DIGEST#id
  *   CALL#call          TURNS  (ttl = purgeAt, DynamoDB TTL also deletes it)
  *   ALERT#id           META                        FAMILY#f             ALERT#createdAt#id
@@ -107,6 +108,14 @@ export class DynamoRepo implements Repo {
     const ids = await this.byPrefix<{ elderId: string }>("ELDERS", "ELDER#");
     return (await Promise.all(ids.map((x) => this.getElder(x.elderId)))).filter((e): e is Elder => Boolean(e));
   }
+  async putVital(v: Vital) { await this.put({ pk: `ELDER#${v.elderId}`, sk: `VITAL#${v.date}#${v.vitalId}`, _t: "vital" }, v); }
+  async listVitals(elderId: string, sinceDate?: string) {
+    const out = await this.byPrefix<Vital>(`ELDER#${elderId}`, "VITAL#", sinceDate ? { from: sinceDate } : {});
+    return out.sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
+  }
+  async putNeed(n: Need) { await this.put({ pk: `ELDER#${n.elderId}`, sk: `NEED#${n.needId}`, _t: "need" }, n); }
+  async getNeed(elderId: string, needId: string) { return this.get<Need>(`ELDER#${elderId}`, `NEED#${needId}`); }
+  async listNeeds(elderId: string) { return (await this.byPrefix<Need>(`ELDER#${elderId}`, "NEED#")).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async putOccasion(o: Occasion) { await this.put({ pk: `FAMILY#${o.familyId}`, sk: `OCC#${o.occasionId}`, _t: "occasion" }, o); }
   async listOccasions(familyId: string) { return this.byPrefix<Occasion>(`FAMILY#${familyId}`, "OCC#"); }
   async deleteOccasion(familyId: string, occasionId: string) { await this.deleteKeys([{ pk: `FAMILY#${familyId}`, sk: `OCC#${occasionId}` }]); }

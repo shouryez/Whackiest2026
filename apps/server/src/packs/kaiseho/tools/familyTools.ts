@@ -16,6 +16,12 @@ import { cancelReminder, createReminder, localToUtc, upcomingReminders } from ".
 import { addOccasion, upcomingOccasions } from "../occasions";
 import { lifeCertStatus, logLifeCert } from "../pension";
 import { sharedReadback } from "../transparency";
+import { wellbeingReport } from "../wellbeing";
+import { insightCards } from "../aiInsights";
+import { logVital, vitalsSummary } from "../vitals";
+import { addNeeds, claimNeed, completeNeed, gasStatus } from "../needs";
+import { callRota, memberName } from "../rota";
+import { cardUrl, ensureCardToken } from "../card";
 
 /**
  * /mcp/family tools (plan.md Section 10.2): the child's door, used from Claude or any MCP client.
@@ -277,5 +283,59 @@ export const FAMILY_TOOLS = {
     description: "Transparency: exactly what KaiseHo reads back when she asks 'what did you tell Ravi?' (last summary, alerts, her messages, what stayed private).",
     shape: { elder_id },
     spec: { name: "get_what_she_hears", tier: "T0", label: () => "🪟 Family viewed the read-back", run: async (_a, { elder }) => sharedReadback(elder) },
+  }),
+  get_wellbeing: t({
+    description: "Her Wellbeing Index (0-100) vs her own usual, six dimensions (mood, sleep, appetite, people, activity, comfort) this week vs last, patterns found in her history, and AI suggestions for the family.",
+    shape: { elder_id },
+    spec: {
+      name: "get_wellbeing", tier: "T0", label: () => "📈 Family read the wellbeing report",
+      run: async (_a, { elder }) => {
+        const r = await wellbeingReport(elder);
+        const ai = await insightCards(elder);
+        return { today: r.today, usual: r.baseline.mean, status: r.status, dims: r.dims, patterns: r.patterns.map((p) => `${p.title}: ${p.detail}`), good_moments: r.highlights, suggestions: ai.cards };
+      },
+    },
+  }),
+  get_vitals: t({
+    description: "Home readings she reported (sugar, BP, oxygen, weight) over N days: latest, average, range and how often out of her target range.",
+    shape: { elder_id, days: z.number().int().min(7).max(90).optional() },
+    spec: { name: "get_vitals", tier: "T0", label: () => "🩸 Family checked readings", run: async (a, { elder }) => { const v = await vitalsSummary(elder, a.days ?? 30); return { targets: v.targets, readings: v.kinds.map(({ series, ...k }) => ({ ...k, last5: series.slice(-5) })) }; } },
+  }),
+  log_vital_for_elder: t({
+    description: "Record a reading on her behalf (e.g. from the clinic or a home visit).",
+    shape: { elder_id, kind: z.enum(["sugar", "bp", "weight", "spo2", "temperature"]), value: z.number(), value2: z.number().optional(), context: z.enum(["fasting", "after_food", "random", "morning", "evening"]).optional() },
+    spec: { name: "log_vital_for_elder", tier: "T1", label: (_a, r) => `🩸 Family logged ${r.reading}`, run: async (a, { elder }) => logVital(elder, { kind: a.kind, value: a.value, value2: a.value2, context: a.context, source: "family" }) },
+  }),
+  get_needs: t({
+    description: "Her household needs list (groceries, medicines, gas cylinder, repairs): what's open, who's handling what, and when the gas is due.",
+    shape: { elder_id },
+    spec: { name: "get_needs", tier: "T0", label: () => "🛒 Family checked the needs list", run: async (_a, { elder }) => ({ needs: (await getRepo().listNeeds(elder.elderId)).slice(0, 15).map((n) => ({ id: n.needId, item: n.item, category: n.category, status: n.status, by: n.claimedBy ?? null })), gas: gasStatus(elder) }) },
+  }),
+  handle_need: t({
+    description: "Claim an item ('I'll handle it') or mark it done. KaiseHo tells her who arranged it in the next call.",
+    shape: { elder_id, need_id: z.string(), action: z.enum(["claim", "done"]) },
+    spec: {
+      name: "handle_need", tier: "T1", label: (a, r) => `🛒 ${r.by} ${a.action === "done" ? "got" : "is arranging"}: ${r.item}`,
+      run: async (a, { elder, actor }) => {
+        const by = await memberName(elder.familyId, actor);
+        const n = a.action === "done" ? await completeNeed(elder, a.need_id, by) : await claimNeed(elder, a.need_id, by);
+        return { ok: true, item: n.item, status: n.status, by };
+      },
+    },
+  }),
+  add_need_for_elder: t({
+    description: "Add something to her needs list yourself (e.g. 'book her gas cylinder', 'fix the geyser').",
+    shape: { elder_id, item: z.string().min(2).max(60) },
+    spec: { name: "add_need_for_elder", tier: "T1", label: (a) => `🛒 Added: ${a.item}`, run: async (a, { elder }) => addNeeds(elder, [{ item: a.item }], "family") },
+  }),
+  get_call_rota: t({
+    description: "Who in the family called her this week and when, and whose turn it is next.",
+    shape: { elder_id },
+    spec: { name: "get_call_rota", tier: "T0", label: () => "📅 Family checked the call rota", run: async (_a, { elder }) => callRota(elder) },
+  }),
+  get_health_card: t({
+    description: "Link to her emergency health card (QR for neighbours / paramedics): conditions, medicines, allergies, contacts.",
+    shape: { elder_id },
+    spec: { name: "get_health_card", tier: "T0", label: () => "🆘 Family opened the health card", run: async (_a, { elder }) => { await ensureCardToken(elder); return { url: cardUrl(elder), note: "Print the QR from the dashboard and stick it on her fridge." }; } },
   }),
 };

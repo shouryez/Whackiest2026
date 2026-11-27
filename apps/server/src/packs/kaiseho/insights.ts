@@ -22,6 +22,12 @@ const InsightSchema = z.object({
   })).max(5),
   memory_updates: z.array(z.object({ memory_id: z.string(), follow_up_done: z.boolean() })).max(10),
   next_call_follow_ups: z.array(z.string()).max(3),
+  wellbeing: z.object({
+    appetite: z.enum(["good", "ok", "low"]).optional(),
+    social: z.enum(["met_people", "phone_only", "alone"]).optional(),
+    activity: z.enum(["went_out", "active_home", "rested"]).optional(),
+    highlight: z.string().max(140).optional(),
+  }).optional(),
 });
 export type Insight = z.infer<typeof InsightSchema>;
 
@@ -116,7 +122,8 @@ Rules: be factual and warm; never diagnose or give medical advice; tool logs are
 never include items marked private; never include numbers like OTPs, account or ID numbers. Flags: missed_meds|low_mood|pain_up|confusion|loneliness|scam|health_question.
 Return JSON: {family_summary_en (2-4 sentences for the child), family_summary_native (same in the elder's language), highlights[<=6 short],
 flags[{type,severity:"watch"|"urgent",evidence}], new_memories[{type,text,importance 1-5,follow_up_after_days?,private:boolean}],
-memory_updates[{memory_id,follow_up_done}], next_call_follow_ups[<=3]}`;
+memory_updates[{memory_id,follow_up_done}], next_call_follow_ups[<=3],
+wellbeing{appetite?:"good"|"ok"|"low" (from what she ate), social?:"met_people"|"phone_only"|"alone", activity?:"went_out"|"active_home"|"rested", highlight? (one good moment, a few words)}}`;
 
 export async function runInsightPass(elder: Elder, call: Call, turns: Turn[], analysis: Record<string, unknown>, memories: Memory[]): Promise<{ insight: Insight; source: CallSummary["source"] }> {
   const facts = await gatherFacts(elder, call);

@@ -10,6 +10,8 @@ import { setTelegramWebhook, telegramEnabled } from "./engine/notify/telegram";
 import { handleElevenLabsWebhook } from "./engine/postcall";
 import { handleAgentMcp } from "./mcp/agentServer";
 import { handleFamilyMcp } from "./mcp/familyServer";
+import { cardHtml, cardQrSvg, tokenOk } from "./packs/kaiseho/card";
+import { getBlob } from "./engine/storage";
 import { handleClinicMcp } from "./mcp/clinicServer";
 import { callElder, startDailyTicker } from "./packs/kaiseho/calls";
 import { kaisehoPostCall, startPurgeJob } from "./packs/kaiseho/postcall";
@@ -99,6 +101,26 @@ app.get("/media/digests/:file", familyAuth, async (c) => {
   const buf = await readAudio(c.req.param("file") ?? "");
   if (!buf) return c.json({ error: "not found" }, 404);
   return c.body(new Uint8Array(buf), 200, { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600" });
+});
+
+// ---------- emergency health card (public by its own random token, no family login) ----------
+app.get("/card/:elderId", async (c) => {
+  const e = await repo.getElder(c.req.param("elderId"));
+  if (!tokenOk(e, c.req.query("k"))) return c.text("This card link is not valid or was turned off.", 404);
+  return c.html(await cardHtml(e), 200, { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" });
+});
+app.get("/card/:elderId/qr.svg", async (c) => {
+  const e = await repo.getElder(c.req.param("elderId"));
+  if (!tokenOk(e, c.req.query("k"))) return c.text("not found", 404);
+  return c.body(await cardQrSvg(e), 200, { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" });
+});
+app.get("/media/voice/:file", familyAuth, async (c) => {
+  const f = c.req.param("file") ?? "";
+  if (!/^vn_[a-f0-9]+\.(webm|ogg|m4a|wav)$/.test(f)) return c.json({ error: "not found" }, 404);
+  const buf = await getBlob(`voice/${f}`);
+  if (!buf) return c.json({ error: "not found" }, 404);
+  const type = f.endsWith(".ogg") ? "audio/ogg" : f.endsWith(".m4a") ? "audio/mp4" : f.endsWith(".wav") ? "audio/wav" : "audio/webm";
+  return c.body(new Uint8Array(buf), 200, { "Content-Type": type, "Cache-Control": "private, max-age=3600" });
 });
 
 // ---------- dashboard API ----------

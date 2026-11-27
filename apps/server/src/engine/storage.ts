@@ -9,7 +9,7 @@ import { env } from "../env";
  */
 let s3: S3Client | undefined;
 const client = () => (s3 ??= new S3Client({ region: env.AWS_REGION }));
-const SAFE = /^[\w-]+(\/[\w-]+)*\.(mp3|jpg|png|json)$/;
+const SAFE = /^[\w-]+(\/[\w-]+)*\.(mp3|jpg|png|json|webm|ogg|m4a|wav)$/;
 
 export async function putBlob(key: string, body: Buffer, contentType: string): Promise<void> {
   if (!SAFE.test(key)) throw new Error("bad key");

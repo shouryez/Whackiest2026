@@ -16,6 +16,8 @@ import { createReminder, localToUtc } from "../reminders";
 import { keepPrivate, sharedReadback } from "../transparency";
 import { logLifeCert } from "../pension";
 import { relayWish } from "../occasions";
+import { logVital } from "../vitals";
+import { addNeeds } from "../needs";
 import { ensureCall, type AgentTool } from "./agentTools";
 
 /** Phase 1 agent tools (plan.md Section 10.1). */
@@ -344,9 +346,53 @@ export const relay_wish: AgentTool<typeof wishShape> = {
   },
 };
 
+// ---------------- log_vital (T1): home readings by voice ----------------
+const vitalShape = {
+  elder_id, call_id,
+  kind: z.enum(["sugar", "bp", "weight", "spo2", "temperature"]),
+  value: z.number().describe("The number she reads out. For BP this is the top number (systolic)"),
+  value2: z.number().optional().describe("BP only: the bottom number (diastolic)"),
+  context: z.enum(["fasting", "after_food", "random", "morning", "evening"]).optional().describe("Sugar: fasting (before breakfast) or after_food"),
+};
+export const log_vital: AgentTool<typeof vitalShape> = {
+  description: "She tells you a home reading: 'sugar was 140 this morning', 'BP 150 by 90', 'oxygen 96'. Log it, then follow the 'say' guidance. Never interpret medically or suggest medicines.",
+  shape: vitalShape,
+  spec: {
+    name: "log_vital", tier: "T1",
+    label: (_a, r) => `🩸 ${r.reading}${r.status === "normal" ? " ✓" : ` · ${String(r.status).replace("_", " ")}`}`,
+    run: async (a, { elder }) => {
+      await ensureCall(elder.elderId, a.call_id);
+      return logVital(elder, { kind: a.kind, value: a.value, value2: a.value2, context: a.context, source: "voice", callId: a.call_id });
+    },
+  },
+};
+
+// ---------------- add_need (T1): household needs ----------------
+const needShape = {
+  elder_id, call_id,
+  items: z.array(z.object({
+    item: z.string().min(2).max(60).describe("e.g. 'atta', 'gas cylinder', 'BP tablets', 'plumber for the kitchen tap'"),
+    category: z.enum(["groceries", "medicine", "gas", "household", "repair", "other"]).optional(),
+    urgency: z.enum(["normal", "soon"]).optional(),
+  })).min(1).max(8),
+};
+export const add_need: AgentTool<typeof needShape> = {
+  description: "She mentions something running out or needing fixing ('atta is finishing', 'the cylinder is low', 'the tap is leaking'). Adds it to the family's shared list; tell her the family will arrange it.",
+  shape: needShape,
+  spec: {
+    name: "add_need", tier: "T1",
+    label: (_a, r) => `🛒 Added to family list: ${(r.added as string[]).join(", ") || "(already there)"}`,
+    run: async (a, { elder }) => {
+      await ensureCall(elder.elderId, a.call_id);
+      return addNeeds(elder, a.items, "voice");
+    },
+  },
+};
+
 export const PHASE1_TOOLS = {
   get_today_context, recall_memory, mark_message_delivered, set_reminder, request_callback,
   update_call_preferences, record_consent, raise_emergency, log_scam_drill, request_appointment,
   get_shared_with_family, keep_private, log_life_certificate, relay_wish,
+  log_vital, add_need,
 };
 

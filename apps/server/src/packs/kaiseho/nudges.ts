@@ -8,6 +8,7 @@ import { env } from "../../env";
 import { getRepo } from "../../repo";
 import { filterForFamily } from "./views";
 import { pr } from "./pronouns";
+import { callRota } from "./rota";
 
 /**
  * Family nudges + conversation starters (plan.md P0-13) and the headline metric
@@ -100,8 +101,10 @@ export async function computeNudge(elder: Elder): Promise<Nudge | null> {
     text = `${n} missed ${missed.length} doses in 2 days. A gentle call might help.`; reason = "missed_meds";
   } else if (lastThree.length >= 2 && (lastThree.at(-1)?.pain?.level ?? 0) - (lastThree[0]?.pain?.level ?? 0) >= 2) {
     text = `${n}'s ${lastThree.at(-1)!.pain!.where} pain is rising. Worth a call, and maybe a doctor visit.`; reason = "pain_up";
-  } else if (daysSinceFamilyCall >= 4) {
-    text = `It's been ${daysSinceFamilyCall > 30 ? "a while" : `${daysSinceFamilyCall} days`} since a family call. ${n} would love to hear from you.`; reason = "no_recent_call";
+  } else if (daysSinceFamilyCall >= 3) {
+    const rota = await callRota(elder);
+    const turn = rota.nextUp && rota.members.length > 1 ? `${rota.nextUp.name}, it's your turn: ` : "";
+    text = `${turn}it's been ${daysSinceFamilyCall > 30 ? "a while" : `${daysSinceFamilyCall} days`} since anyone called ${n}. ${p.She} brightens after calls.`; reason = "no_recent_call";
   } else {
     return null;
   }
@@ -113,8 +116,12 @@ export async function computeNudge(elder: Elder): Promise<Nudge | null> {
   await repo.putNudge(nudge);
   emit("nudge.created", elder.familyId, { nudge }, elder.elderId);
 
-  const primary = (await repo.listMembers(elder.familyId)).find((m) => m.role === "primary");
-  const chatId = primary?.telegramChatId ?? env.TELEGRAM_DEMO_CHAT_ID;
+  const members = await repo.listMembers(elder.familyId);
+  const primary = members.find((m) => m.role === "primary");
+  // Rota: the "your turn" nudge goes to that sibling if they've linked Telegram.
+  const turnName = reason === "no_recent_call" ? (await callRota(elder)).nextUp?.name : undefined;
+  const target = members.find((m) => m.name === turnName && m.telegramChatId);
+  const chatId = target?.telegramChatId ?? primary?.telegramChatId ?? env.TELEGRAM_DEMO_CHAT_ID;
   if (chatId) {
     await sendTelegram(chatId, `💡 <b>${escapeHtml(text)}</b>\nAsk: "${escapeHtml(nudge.starters[0]?.starter ?? "")}"`, [
       [{ text: "☎️ I called her", callback_data: `called:${elder.elderId}` }],

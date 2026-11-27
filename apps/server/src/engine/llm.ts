@@ -127,6 +127,23 @@ export async function llmJson<T>(opts: {
   return null;
 }
 
+// ---------- audio (grandchildren's voice notes) ----------
+/** Speech → text with Gemini (audio inline). Null when the provider isn't Gemini or the call fails. */
+export async function llmTranscribe(audio: { mimeType: string; base64: string }, hint = ""): Promise<string | null> {
+  if (env.LLM_PROVIDER !== "gemini" || !env.GEMINI_API_KEY) return null;
+  try {
+    const out = await callGemini(
+      "Transcribe this short family voice message exactly as spoken. If it is in Hindi or Kannada, transcribe in that script and add an English translation after ' / '. Reply with JSON {\"text\": string}.",
+      hint || "Transcribe.", 30000, { mediaType: audio.mimeType as ImageInput["mediaType"], base64: audio.base64 },
+    );
+    const parsed = extractJson(out) as { text?: string } | null;
+    return parsed?.text?.trim() || null;
+  } catch (err) {
+    console.warn("[llm audio]", (err as Error).message);
+    return null;
+  }
+}
+
 // ---------- vision (prescription photos, plan.md P2-2) ----------
 export type ImageInput = { mediaType: "image/jpeg" | "image/png" | "image/webp"; base64: string };
 

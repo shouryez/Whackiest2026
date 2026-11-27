@@ -19,10 +19,12 @@
     "@kaiseho/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.2",
     "hono": "^4.11.4",
+    "qrcode": "1.5.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/qrcode": "1.5.5",
     "dynalite": "^4.0.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",

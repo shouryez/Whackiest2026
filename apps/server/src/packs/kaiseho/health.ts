@@ -1,6 +1,7 @@
 import type { Elder, Medication } from "@kaiseho/shared";
 import { addDays, localDate } from "../../engine/ids";
 import { getRepo } from "../../repo";
+import { vitalsSummary } from "./vitals";
 import { createAlert } from "./alerts";
 import { pr } from "./pronouns";
 import { filterForFamily } from "./views";
@@ -116,11 +117,13 @@ export async function doctorBrief(elder: Elder, days = 30) {
   const moods = checkIns.filter((c) => c.mood).map((c) => c.mood!);
   const pains = checkIns.filter((c) => c.pain);
   const changes = await detectChanges(elder);
+  const vit = await vitalsSummary(elder, days);
 
   const questions: string[] = [];
   for (const m of perMed) if (m.adherencePct !== null && m.adherencePct < 85) questions.push(`${m.name} is often missed (${m.adherencePct}%). Is there a simpler schedule?`);
   if (pains.length) questions.push(`${pains.at(-1)!.pain!.where} pain, latest ${pains.at(-1)!.pain!.level}/10: what should we watch for?`);
   for (const c of changes) questions.push(`${c.text}: should we be concerned?`);
+  for (const k of vit.kinds.filter((k) => k.outOfRange > 0)) questions.push(`${k.label} was outside the target range ${k.outOfRange} of ${k.count} times (latest ${k.latest?.text.replace(/^\S+\s/, "")}). Should the targets or routine change?`);
   for (const n of healthNotes.slice(-3)) questions.push(`She mentioned: "${n.text}"`);
   if (!questions.length) questions.push("Anything to adjust in her current medicines or routine?");
 
@@ -134,6 +137,7 @@ export async function doctorBrief(elder: Elder, days = 30) {
     mood: { average: moods.length ? +(moods.reduce((a, b) => a + b, 0) / moods.length).toFixed(1) : null, lowDays: checkIns.filter((c) => (c.mood ?? 5) <= 2).map((c) => c.date) },
     pain: pains.map((c) => ({ date: c.date, where: c.pain!.where, level: c.pain!.level })),
     sleepPoorDays: checkIns.filter((c) => c.sleep === "poor").length,
+    vitals: vit.kinds.map((k) => ({ label: k.label, unit: k.unit, count: k.count, avg: k.kind === "bp" ? `${k.avg}/${k.avg2}` : String(k.avg), range: `${k.min}–${k.max}`, outOfRange: k.outOfRange, latest: k.latest?.text ?? null })),
     changes,
     events: alerts.map((a) => ({ date: a.createdAt.slice(0, 10), type: a.type, title: a.title })),
     healthNotes,
