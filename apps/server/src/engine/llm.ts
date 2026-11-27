@@ -8,7 +8,18 @@ import { env } from "../env";
  * callers fall back to deterministic rules, so the demo never depends on an API key.
  * On a parse failure we retry once, then return null (callers degrade gracefully).
  */
+/** Circuit breaker: when the provider says the quota is used up, skip AI for a while so rules answer instantly. */
+let coolUntil = 0;
+export function llmCoolingDown(): boolean { return Date.now() < coolUntil; }
+function tripBreaker(err: Error): void {
+  if (/LLM 429/.test(err.message) && /quota|RESOURCE_EXHAUSTED|rate/i.test(err.message)) {
+    coolUntil = Date.now() + 10 * 60_000;
+    console.warn("[llm] quota exhausted: using rules for the next 10 minutes");
+  }
+}
+
 export function llmEnabled(): boolean {
+  if (llmCoolingDown()) return false;
   if (env.LLM_PROVIDER === "anthropic") return Boolean(env.ANTHROPIC_API_KEY);
   if (env.LLM_PROVIDER === "bedrock") return Boolean(env.BEDROCK_MODEL_ID);
   if (env.LLM_PROVIDER === "gemini") return Boolean(env.GEMINI_API_KEY);
@@ -45,6 +56,7 @@ async function callGemini(system: string, user: string, timeoutMs: number, image
       return await callGeminiModel(m, system, user, left, image);
     } catch (err) {
       lastErr = err as Error;
+      if (/LLM 429/.test(lastErr.message) && /quota/i.test(lastErr.message)) { tripBreaker(lastErr); throw lastErr; } // quota is per project: other models won't help
       if (!/LLM (503|429|500)/.test(lastErr.message)) throw lastErr;
       console.warn(`[llm] ${m} busy, trying next model`);
     }
@@ -130,7 +142,7 @@ export async function llmJson<T>(opts: {
 // ---------- audio (grandchildren's voice notes) ----------
 /** Speech → text with Gemini (audio inline). Null when the provider isn't Gemini or the call fails. */
 export async function llmTranscribe(audio: { mimeType: string; base64: string }, hint = ""): Promise<string | null> {
-  if (env.LLM_PROVIDER !== "gemini" || !env.GEMINI_API_KEY) return null;
+  if (env.LLM_PROVIDER !== "gemini" || !env.GEMINI_API_KEY || llmCoolingDown()) return null;
   try {
     const out = await callGemini(
       "Transcribe this short family voice message exactly as spoken. If it is in Hindi or Kannada, transcribe in that script and add an English translation after ' / '. Reply with JSON {\"text\": string}.",

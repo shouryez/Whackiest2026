@@ -78,7 +78,7 @@ export function rulesInsight(elder: Elder, facts: CallFacts): Insight {
   const highlights: string[] = [];
   const flags: Insight["flags"] = [];
 
-  if (facts.mood) s.push(`${n} sounded ${MOOD_WORDS[facts.mood]} today (mood ${facts.mood}/5)${facts.sleep ? ` and slept ${facts.sleep === "ok" ? "okay" : facts.sleep}` : ""}.`);
+  if (facts.mood) s.push(`${n} sounded ${MOOD_WORDS[facts.mood]} today (mood ${facts.mood}/5)${facts.sleep ? ` and slept ${facts.sleep === "ok" ? "okay" : facts.sleep === "good" ? "well" : "poorly"}` : ""}.`);
   const taken = facts.meds.filter((m) => m.status === "taken");
   const missed = facts.meds.filter((m) => m.status === "missed");
   if (taken.length) { s.push(`${p.She} took ${taken.map((m) => `${m.name} (${m.slot})`).join(", ")}.`); highlights.push(`Took ${taken.map((m) => m.name.split(" ")[0]).join(", ")} ✓`); }
