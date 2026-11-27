@@ -40,7 +40,7 @@ export function DigestCard({ elderId, name }: { elderId: string; name: string })
         <p className="text-sm text-muted">A 60-second audio summary of {name}'s week, ending with one thing to talk about. Sent to your Telegram every Sunday.</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-gradient-to-r from-navy to-[#2a3190] p-4 text-white">
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-gradient-to-r from-navy to-navy/75 p-4 text-on-forest">
             {d.audio ? (
               <audio ref={audio} controls preload="none" className="h-10 w-full min-w-0 flex-1" src={`${API}/media/digests/${d.audio.file}?token=${encodeURIComponent(TOKEN)}`} />
             ) : (
@@ -50,11 +50,11 @@ export function DigestCard({ elderId, name }: { elderId: string; name: string })
                 </button>
                 <div className="flex h-8 flex-1 items-center gap-[3px]">
                   {Array.from({ length: 48 }).map((_, i) => (
-                    <span key={i} className={speaking ? "wave-bar w-1 rounded-full bg-white/80" : "w-1 rounded-full bg-white/35"}
+                    <span key={i} className={speaking ? "wave-bar w-1 rounded-full bg-on-forest/80" : "w-1 rounded-full bg-on-forest/35"}
                       style={{ height: `${25 + ((i * 53) % 75)}%`, animationDelay: `${(i % 8) * 0.09}s` }} />
                   ))}
                 </div>
-                <span className="flex items-center gap-1 text-[11px] text-white/70"><Volume2 className="size-3.5" />browser voice</span>
+                <span className="flex items-center gap-1 text-[11px] text-on-forest/70"><Volume2 className="size-3.5" />browser voice</span>
               </>
             )}
           </div>

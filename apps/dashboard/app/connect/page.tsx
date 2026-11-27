@@ -10,7 +10,7 @@ function CopyBox({ value }: { value: string }) {
   return (
     <div className="flex items-center gap-2 rounded-xl bg-night px-3 py-2.5 font-mono text-xs text-[#c5c9e8]">
       <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap">{value}</code>
-      <button onClick={() => { void navigator.clipboard.writeText(value); setOk(true); setTimeout(() => setOk(false), 1200); }} className="rounded-md p-1 hover:bg-white/10" aria-label="Copy">{ok ? <Check className="size-3.5 text-[#6ee7a0]" /> : <Copy className="size-3.5" />}</button>
+      <button onClick={() => { void navigator.clipboard.writeText(value); setOk(true); setTimeout(() => setOk(false), 1200); }} className="rounded-md p-1 hover:bg-on-forest/10" aria-label="Copy">{ok ? <Check className="size-3.5 text-[#6ee7a0]" /> : <Copy className="size-3.5" />}</button>
     </div>
   );
 }

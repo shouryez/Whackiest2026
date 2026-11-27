@@ -77,7 +77,7 @@ export async function seedDemo(opts: { resetEvents?: boolean; inLaws?: boolean }
     };
     const low = moods[idx] <= 2;
     await repo.putCall({ elderId: elder.elderId, callId, reason: "daily", status: "completed", attempt: 1, startedAt: `${date}T03:30:00Z`, endedAt: `${date}T03:32:40Z`, durationSec: 160, familyMessagesSent: 0, mode: "live", summary, qualityChecks: { disclosed_ai: true, no_medical_advice: true, no_sensitive_numbers: true, asked_all_meds: true },
-      voice: { wpm: low ? 94 + (idx % 3) : 104 + ((idx * 7) % 9), replyGapSec: low ? 1.8 : 1.1 + ((idx % 4) * 0.1), turns: 9 } });
+      voice: { wpm: low ? 94 + (idx % 3) : 104 + ((idx * 7) % 9), replyGapSec: low ? 1.8 : Math.round((1.1 + (idx % 4) * 0.1) * 10) / 10, turns: 9 } });
     await repo.putCheckIn({ elderId: elder.elderId, callId, date, mood: moods[idx], sleep: low ? "poor" : "good", pain: { where: "knee", level: pains[idx] },
       appetite: APPETITE[idx], social: SOCIAL[idx], activity: ACTIVITY[idx], highlight: HIGHLIGHT[idx], updatedAt: `${date}T03:33:00Z` });
     const vit = (kind: Vital["kind"], value: number, value2?: number): Vital => ({ elderId: elder.elderId, vitalId: `vit_${kind}_${date}`, kind, value, value2, unit: UNIT[kind], context: kind === "sugar" ? "fasting" : "morning", date, measuredAt: `${date}T03:31:00Z`, status: classify(kind, value, value2, kind === "sugar" ? "fasting" : "morning", DEFAULT_TARGETS), source: "voice", callId });

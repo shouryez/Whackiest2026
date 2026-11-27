@@ -16,7 +16,7 @@ export default function AuditPage() {
     <div>
       <PageTitle kicker="Radical transparency" title="Audit log">
         <div className="inline-flex rounded-xl bg-paper p-1 ring-1 ring-sand">
-          {["all", "T0", "T1", "T2", "T3"].map((t) => <button key={t} onClick={() => setTier(t)} className={cx("rounded-lg px-3 py-1.5 font-mono text-sm font-bold", tier === t ? "bg-forest text-white" : "text-muted")}>{t}</button>)}
+          {["all", "T0", "T1", "T2", "T3"].map((t) => <button key={t} onClick={() => setTier(t)} className={cx("rounded-lg px-3 py-1.5 font-mono text-sm font-bold", tier === t ? "bg-forest text-on-forest" : "text-muted")}>{t}</button>)}
         </div>
       </PageTitle>
       <Card className="!p-0 overflow-hidden">

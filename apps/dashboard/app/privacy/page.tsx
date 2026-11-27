@@ -67,7 +67,7 @@ export default function PrivacyPage() {
         <div className="grid gap-3 sm:grid-cols-5">
           {TIERS.map(([t, n, d, r, c]) => (
             <div key={t} className="rounded-2xl bg-cream/60 p-4 ring-1 ring-sand">
-              <span className={cx("inline-grid h-9 min-w-9 place-items-center rounded-xl px-2 font-mono text-sm font-bold text-white", c)}>{t}</span>
+              <span className={cx("inline-grid h-9 min-w-9 place-items-center rounded-xl px-2 font-mono text-sm font-bold text-on-forest", c)}>{t}</span>
               <p className="mt-2 font-bold">{n}</p>
               <p className="mt-0.5 text-xs text-muted">{d}</p>
               <p className="mt-2 text-xs font-semibold">{t === "T∞" ? <span className="text-danger"><X className="mr-0.5 inline size-3" />{r}</span> : r}</p>

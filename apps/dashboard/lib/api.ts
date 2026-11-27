@@ -24,7 +24,7 @@ export interface TodayView {
   date: string;
   elder: { elderId: string; name: string; preferredName: string; age?: number; city: string; languages: string[]; callTimeLocal: string; status: string; privacy: { shareMedicines: boolean; shareWellbeing: boolean; shareMemories: boolean } };
   meds: { medId: string; name: string; slot: string; status: MedStatus }[];
-  wellbeing: { mood?: number; sleep?: string; pain?: { where: string; level: number }; energy?: number; appetite?: string } | null;
+  wellbeing: { mood?: number; sleep?: string; pain?: { where: string; level: number }; energy?: number; appetite?: string; social?: string; activity?: string; highlight?: string } | null;
   trend: { date: string; mood: number | null; pain: number | null }[];
   adherence14d: number | null;
   followUps: string[];

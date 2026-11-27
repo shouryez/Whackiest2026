@@ -1,5 +1,5 @@
 "use client";
-import { BedDouble, Bone, Check, CircleHelp, Clock, Lightbulb, MessageCircleHeart, Phone, PhoneCall, Pill, Smile, Sparkles, X } from "lucide-react";
+import { BedDouble, Bone, Check, CircleHelp, Clock, Footprints, Lightbulb, MessageCircleHeart, Phone, PhoneCall, Pill, Smile, Sparkles, Users, Utensils, X } from "lucide-react";
 import { useState } from "react";
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { post, type CallSummary, type ElderCard, type FamilyCalls, type Nudge, type TodayView, type TrendPoint } from "@/lib/api";
@@ -16,22 +16,22 @@ export function FamilyCallsCard({ stats, elderId, compact }: { stats: FamilyCall
   return (
     <Card tone="forest" className="relative overflow-hidden">
       <div className="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-saffron/15 blur-2xl" />
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60">Family calls this week</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-forest/60">Family calls this week</p>
       <div className="mt-2 flex items-end gap-3">
         <span className="font-display text-7xl leading-none font-semibold">{stats.thisWeek}</span>
-        <span className={cx("mb-2 rounded-full px-2.5 py-1 text-xs font-bold", diff >= 0 ? "bg-[#2e9e5b] text-white" : "bg-white/15 text-white")}>
+        <span className={cx("mb-2 rounded-full px-2.5 py-1 text-xs font-bold", diff >= 0 ? "bg-forest text-on-forest" : "bg-on-forest/15 text-on-forest")}>
           {diff >= 0 ? "▲" : "▼"} {diff >= 0 ? "up" : "down"} from {stats.lastWeek}
         </span>
       </div>
-      <p className="mt-2 text-sm text-white/70">Our success metric: more human calls, not fewer.</p>
+      <p className="mt-2 text-sm text-on-forest/70">Our success metric: more human calls, not fewer.</p>
       {!compact && (
         <div className="mt-5 flex items-end gap-2">
           {stats.byDay.map((d) => (
             <div key={d.date} className="flex flex-1 flex-col items-center gap-1.5">
               <div className="flex h-12 w-full items-end">
-                <div className={cx("w-full rounded-md transition-all", d.count ? "bg-saffron" : "bg-white/10")} style={{ height: `${d.count ? 30 + (d.count / max) * 70 : 12}%` }} />
+                <div className={cx("w-full rounded-md transition-all", d.count ? "bg-saffron" : "bg-on-forest/10")} style={{ height: `${d.count ? 30 + (d.count / max) * 70 : 12}%` }} />
               </div>
-              <span className="text-[10px] font-semibold text-white/50">{shortDay(d.date)}</span>
+              <span className="text-[10px] font-semibold text-on-forest/50">{shortDay(d.date)}</span>
             </div>
           ))}
         </div>
@@ -98,23 +98,22 @@ export function TodayCard({ v }: { v: TodayView }) {
   return (
     <Card className="h-full">
       <CardHeader icon={Smile} kicker={`Today · ${new Date(`${v.date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}`} title="How she is today" />
-      <div className="mb-4 grid grid-cols-3 gap-2.5">
-        <div className="rounded-2xl bg-saffron-soft/70 p-3 text-center">
-          <div className="text-3xl">{w?.mood ? MOOD_EMOJI[w.mood] : "—"}</div>
-          <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted">Mood</p>
-          <p className="text-sm font-semibold">{w?.mood ? MOOD_WORD[w.mood] : "Not yet"}</p>
-        </div>
-        <div className="rounded-2xl bg-[#eef1fb] p-3 text-center">
-          <BedDouble className="mx-auto size-7 text-navy" />
-          <p className="mt-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">Sleep</p>
-          <p className="text-sm font-semibold capitalize">{w?.sleep ?? "Not yet"}</p>
-        </div>
-        <div className="rounded-2xl bg-forest-soft/70 p-3 text-center">
-          <Bone className="mx-auto size-7 text-forest" />
-          <p className="mt-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">Pain</p>
-          <p className="text-sm font-semibold capitalize">{w?.pain ? `${w.pain.where} ${w.pain.level}/10` : "None reported"}</p>
-        </div>
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {[
+          { k: "Mood", v: w?.mood ? MOOD_WORD[w.mood] : null, tone: "bg-saffron-soft/70", icon: <span className="text-xl leading-none">{w?.mood ? MOOD_EMOJI[w.mood] : "·"}</span> },
+          { k: "Sleep", v: w?.sleep ? ({ good: "Slept well", ok: "Okay night", poor: "Poor night" } as Record<string, string>)[w.sleep] : null, tone: "bg-navy-soft", icon: <BedDouble className="size-5 text-navy" /> },
+          { k: "Appetite", v: w?.appetite ? ({ good: "Ate well", ok: "Ate lightly", low: "Barely ate" } as Record<string, string>)[w.appetite] : null, tone: "bg-forest-soft/70", icon: <Utensils className="size-5 text-forest" /> },
+          { k: "People", v: w?.social ? ({ met_people: "Met people", phone_only: "Phone only", alone: "Alone today" } as Record<string, string>)[w.social] : null, tone: "bg-teal-soft", icon: <Users className="size-5 text-teal" /> },
+          { k: "Activity", v: w?.activity ? ({ went_out: "Went out", active_home: "Busy at home", rested: "Rested" } as Record<string, string>)[w.activity] : null, tone: "bg-saffron-soft/50", icon: <Footprints className="size-5 text-saffron-deep" /> },
+          { k: "Comfort", v: w?.pain ? `${w.pain.where} ${w.pain.level}/10` : null, tone: "bg-danger-soft/70", icon: <Bone className="size-5 text-danger" /> },
+        ].map((x) => (
+          <div key={x.k} className={cx("rounded-[16px] p-3", x.tone)}>
+            <div className="flex items-center justify-between">{x.icon}<p className="text-[9.5px] font-semibold tracking-[0.16em] text-muted uppercase">{x.k}</p></div>
+            <p className={cx("mt-2 text-[13.5px]", x.v ? "font-semibold first-letter:uppercase" : "text-muted")}>{x.v ?? "not yet"}</p>
+          </div>
+        ))}
       </div>
+      {w?.highlight && <p className="mb-4 font-hand text-[1.35rem] leading-snug text-saffron-deep">✦ “{w.highlight}”</p>}
       <MedsList meds={v.meds} />
       {v.followUps.length > 0 && (
         <div className="mt-4 rounded-2xl bg-cream p-3.5 ring-1 ring-sand">
@@ -127,7 +126,7 @@ export function TodayCard({ v }: { v: TodayView }) {
 }
 
 // ---------- call summary ----------
-export function SummaryBlock({ summary, lang = "kn" }: { summary: CallSummary; lang?: string }) {
+export function SummaryBlock({ summary, lang = "kn", dropcap }: { summary: CallSummary; lang?: string; dropcap?: boolean }) {
   const [native, setNative] = useState(false);
   return (
     <div>
@@ -138,7 +137,7 @@ export function SummaryBlock({ summary, lang = "kn" }: { summary: CallSummary; l
         </div>
         <Badge tone={summary.source === "llm" ? "navy" : "neutral"}>{summary.source === "llm" ? "AI summary" : "Rules summary"}</Badge>
       </div>
-      <p className="text-[15px] leading-relaxed">{native ? summary.family_native : summary.family_en}</p>
+      <p className={cx("text-[15px] leading-relaxed", dropcap && !native && "k-dropcap text-[15.5px]")}>{native ? summary.family_native : summary.family_en}</p>
       {summary.highlights.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {summary.highlights.map((h) => <Badge key={h} tone={/scam|missed|emergency/i.test(h) ? "danger" : /✓|better|heard/i.test(h) ? "forest" : "neutral"}>{h}</Badge>)}
@@ -149,22 +148,22 @@ export function SummaryBlock({ summary, lang = "kn" }: { summary: CallSummary; l
 }
 
 // ---------- charts ----------
-const tick = { fontSize: 11, fill: "#6b6459" };
+const tick = { fontSize: 11, fill: "var(--k-muted)" };
 export function MoodPainChart({ data, height = 220 }: { data: { date: string; mood: number | null; pain: number | null }[]; height?: number }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
         <defs>
-          <linearGradient id="moodFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fd9b36" stopOpacity={0.45} /><stop offset="100%" stopColor="#fd9b36" stopOpacity={0} /></linearGradient>
+          <linearGradient id="moodFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--k-saffron)" stopOpacity={0.45} /><stop offset="100%" stopColor="var(--k-saffron)" stopOpacity={0} /></linearGradient>
         </defs>
-        <CartesianGrid stroke="#ede3cf" strokeDasharray="3 4" vertical={false} />
+        <CartesianGrid stroke="var(--k-line)" strokeDasharray="3 4" vertical={false} />
         <XAxis dataKey="date" tickFormatter={(d) => new Date(`${d}T00:00:00`).getDate().toString()} tick={tick} axisLine={false} tickLine={false} />
         <YAxis yAxisId="mood" domain={[0, 5]} ticks={[1, 3, 5]} tick={tick} axisLine={false} tickLine={false} />
         <YAxis yAxisId="pain" orientation="right" domain={[0, 10]} hide />
-        <Tooltip contentStyle={{ borderRadius: 14, border: "1px solid #ede3cf", fontSize: 12 }} labelFormatter={(d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
+        <Tooltip contentStyle={{ borderRadius: 14, border: "1px solid var(--k-line)", background: "var(--k-surface)", color: "var(--k-ink)", fontSize: 12 }} labelFormatter={(d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
           formatter={(v, n) => [n === "mood" ? `${v}/5 ${MOOD_EMOJI[Number(v)] ?? ""}` : `${v}/10`, n === "mood" ? "Mood" : "Knee pain"]} />
-        <Area yAxisId="mood" type="monotone" dataKey="mood" stroke="#e0821f" strokeWidth={2.5} fill="url(#moodFill)" dot={{ r: 3, fill: "#fd9b36", strokeWidth: 0 }} connectNulls isAnimationActive={false} />
-        <Line yAxisId="pain" type="monotone" dataKey="pain" stroke="#1f5c3d" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls isAnimationActive={false} />
+        <Area yAxisId="mood" type="monotone" dataKey="mood" stroke="var(--k-saffron-deep)" strokeWidth={2.5} fill="url(#moodFill)" dot={{ r: 3, fill: "var(--k-saffron)", strokeWidth: 0 }} connectNulls isAnimationActive={false} />
+        <Line yAxisId="pain" type="monotone" dataKey="pain" stroke="var(--k-forest)" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls isAnimationActive={false} />
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -174,12 +173,12 @@ export function AdherenceChart({ data, height = 180 }: { data: TrendPoint[]; hei
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-        <CartesianGrid stroke="#ede3cf" strokeDasharray="3 4" vertical={false} />
+        <CartesianGrid stroke="var(--k-line)" strokeDasharray="3 4" vertical={false} />
         <XAxis dataKey="date" tickFormatter={(d) => new Date(`${d}T00:00:00`).getDate().toString()} tick={tick} axisLine={false} tickLine={false} />
         <YAxis allowDecimals={false} tick={tick} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={{ borderRadius: 14, border: "1px solid #ede3cf", fontSize: 12 }} />
-        <Bar dataKey="taken" stackId="a" fill="#2e9e5b" radius={[0, 0, 4, 4]} name="Taken" isAnimationActive={false} />
-        <Bar dataKey="missed" stackId="a" fill="#c62828" radius={[4, 4, 0, 0]} name="Missed" isAnimationActive={false} />
+        <Tooltip cursor={{ fill: "var(--k-line)", opacity: 0.4 }} contentStyle={{ borderRadius: 14, border: "1px solid var(--k-line)", background: "var(--k-surface)", color: "var(--k-ink)", fontSize: 12 }} />
+        <Bar dataKey="taken" stackId="a" fill="var(--k-forest)" radius={[0, 0, 4, 4]} name="Taken" isAnimationActive={false} />
+        <Bar dataKey="missed" stackId="a" fill="var(--k-rust)" radius={[4, 4, 0, 0]} name="Missed" isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   );

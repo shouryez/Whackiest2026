@@ -41,8 +41,8 @@ export default function Onboard() {
       <PageTitle kicker="Takes 2 minutes" title="Add a parent" />
       <ol className="mb-6 grid grid-cols-3 gap-2">
         {STEPS.map(([k, l, Icon], i) => (
-          <li key={k} className={cx("flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold ring-1", i === step ? "bg-forest text-white ring-forest" : i < step ? "bg-forest-soft text-forest ring-forest/20" : "bg-paper text-muted ring-sand")}>
-            <span className={cx("grid size-7 place-items-center rounded-full text-xs", i === step ? "bg-white/20" : i < step ? "bg-forest text-white" : "bg-sand/60")}>{i < step ? <Check className="size-4" /> : <Icon className="size-4" />}</span>{l}
+          <li key={k} className={cx("flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold ring-1", i === step ? "bg-forest text-on-forest ring-forest" : i < step ? "bg-forest-soft text-forest ring-forest/20" : "bg-paper text-muted ring-sand")}>
+            <span className={cx("grid size-7 place-items-center rounded-full text-xs", i === step ? "bg-on-forest/20" : i < step ? "bg-forest text-on-forest" : "bg-sand/60")}>{i < step ? <Check className="size-4" /> : <Icon className="size-4" />}</span>{l}
           </li>
         ))}
       </ol>
@@ -61,7 +61,7 @@ export default function Onboard() {
             <p className="text-sm font-semibold">They are your</p>
             <div className="mt-1.5 flex gap-2">
               {([["female", "Mother", "Amma"], ["male", "Father", "Appa"], ["other", "Other", ""]] as const).map(([k, l, nick]) => (
-                <button key={k} onClick={() => setP({ ...p, gender: k, preferredName: nick || p.preferredName })} className={cx("rounded-xl px-4 py-2 text-sm font-semibold ring-1", p.gender === k ? "bg-forest text-white ring-forest" : "bg-paper ring-sand-deep")}>{l}</button>
+                <button key={k} onClick={() => setP({ ...p, gender: k, preferredName: nick || p.preferredName })} className={cx("rounded-xl px-4 py-2 text-sm font-semibold ring-1", p.gender === k ? "bg-forest text-on-forest ring-forest" : "bg-paper ring-sand-deep")}>{l}</button>
               ))}
             </div>
           </div>
@@ -69,7 +69,7 @@ export default function Onboard() {
             <p className="text-sm font-semibold">Language for the calls</p>
             <div className="mt-1.5 flex gap-2">
               {([["kn", "ಕನ್ನಡ Kannada"], ["hi", "हिन्दी Hindi"], ["en", "English"]] as const).map(([k, l]) => (
-                <button key={k} onClick={() => setP({ ...p, language: k })} className={cx("rounded-xl px-4 py-2 text-sm font-semibold ring-1", p.language === k ? "bg-forest text-white ring-forest" : "bg-paper ring-sand-deep")}>{l}</button>
+                <button key={k} onClick={() => setP({ ...p, language: k })} className={cx("rounded-xl px-4 py-2 text-sm font-semibold ring-1", p.language === k ? "bg-forest text-on-forest ring-forest" : "bg-paper ring-sand-deep")}>{l}</button>
               ))}
             </div>
           </div>
@@ -90,7 +90,7 @@ export default function Onboard() {
                 <div className="flex flex-wrap gap-1.5 sm:col-span-3">
                   {["morning", "afternoon", "evening", "night"].map((s) => (
                     <button key={s} onClick={() => setMeds(meds.map((x, j) => j === i ? { ...x, slots: x.slots.includes(s) ? x.slots.filter((y) => y !== s) : [...x.slots, s] } : x))}
-                      className={cx("rounded-full px-3 py-1 text-xs font-semibold ring-1", m.slots.includes(s) ? "bg-forest text-white ring-forest" : "bg-paper text-muted ring-sand-deep")}>{cap(s)}</button>
+                      className={cx("rounded-full px-3 py-1 text-xs font-semibold ring-1", m.slots.includes(s) ? "bg-forest text-on-forest ring-forest" : "bg-paper text-muted ring-sand-deep")}>{cap(s)}</button>
                   ))}
                 </div>
               </div>
@@ -108,7 +108,7 @@ export default function Onboard() {
       {step === 2 && (
         <Card tone="saffron" className="animate-fade-up">
           <div className="flex items-start gap-4">
-            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-forest text-white"><ShieldCheck className="size-6" /></span>
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-forest text-on-forest"><ShieldCheck className="size-6" /></span>
             <div>
               <h2 className="font-display text-2xl font-semibold">Consent comes first</h2>
               <p className="mt-1 text-[15px] leading-relaxed">

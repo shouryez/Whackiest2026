@@ -1,5 +1,5 @@
 "use client";
-import { Handshake, BadgeCheck, Brain, CalendarClock, ChevronDown, Clock, HeartPulse, Lock, MessageSquareText, Phone, PhoneOutgoing, Pill, Plus, Send, Timer, Trash2, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Handshake, BadgeCheck, Brain, CalendarClock, ChevronDown, Clock, HeartPulse, Lock, MessageSquareText, Phone, PhoneOutgoing, Pill, Plus, Send, Sparkles, Timer, Trash2, TrendingUp } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { DigestCard } from "@/components/DigestCard";
@@ -7,13 +7,14 @@ import { HealthCard } from "@/components/HealthCard";
 import { AppointmentsCard, PrescriptionCard } from "@/components/CareCards";
 import { OccasionsCard, PensionCard, ReadbackCard, RemindersCard } from "@/components/LifeCards";
 import { AdherenceChart, MoodPainChart, SummaryBlock, TodayCard } from "@/components/cards";
-import { Avatar, Badge, Button, Card, CardHeader, Empty, Skeleton, cx } from "@/components/ui";
+import { Constellation, HealthCardQR, IndexRiver, InsightCards, NeedsCard, PatternList, RotaCard, STATUS_WORD, VitalsCard, VoiceNoteCard, type Wellbeing } from "@/components/Insight";
+import { Avatar, Badge, Button, Card, CardHeader, CountUp, Empty, HandNote, SectionHead, Skeleton, cx } from "@/components/ui";
 import { api, post, type Memory, type Message, type Profile, type TimelineCall, type TodayView, type TrendPoint } from "@/lib/api";
 import { MOOD_EMOJI, cap, clock, dayLabel, timeAgo } from "@/lib/format";
 import { useApi, useLive } from "@/lib/live";
 
-const SECTIONS = [["today", "Today"], ["health", "Health"], ["life", "Reminders"], ["calls", "Calls"], ["trends", "Trends"], ["memories", "Memories"], ["messages", "Messages"], ["medicines", "Medicines"], ["schedule", "Schedule"]] as const;
-const MEM_STYLE: Record<string, string> = { person: "bg-[#e9ebfb] text-navy", event: "bg-saffron-soft text-saffron-deep", health: "bg-danger-soft text-danger", preference: "bg-forest-soft text-forest", story: "bg-sand/60 text-muted", plan: "bg-[#e6f4f1] text-[#0f766e]" };
+const SECTIONS = [["wellbeing", "Wellbeing"], ["health", "Health"], ["family", "Family"], ["life", "Life admin"], ["calls", "Calls"], ["medicines", "Care settings"]] as const;
+const MEM_STYLE: Record<string, string> = { person: "bg-navy-soft text-navy", event: "bg-saffron-soft text-saffron-deep", health: "bg-danger-soft text-danger", preference: "bg-forest-soft text-forest", story: "bg-sand/60 text-muted", plan: "bg-teal-soft text-teal" };
 
 function Transcript({ elderId, callId }: { elderId: string; callId: string }) {
   const { data } = useApi<{ turns: { idx: number; role: string; text: string }[]; purgeAt: string | null; note: string }>(`/elders/${elderId}/transcript/${callId}`);
@@ -34,7 +35,7 @@ function CallCard({ c, elderId, open, onToggle }: { c: TimelineCall; elderId: st
   return (
     <li className="relative pl-8">
       <span className={cx("absolute top-1 left-0 grid size-6 place-items-center rounded-full text-xs ring-4 ring-paper",
-        c.status === "completed" ? "bg-forest text-white" : c.status === "no_answer" ? "bg-danger text-white" : "bg-saffron text-ink")}>
+        c.status === "completed" ? "bg-forest text-on-forest" : c.status === "no_answer" ? "bg-danger text-on-forest" : "bg-saffron text-ink")}>
         {c.status === "completed" ? "✓" : c.status === "no_answer" ? "!" : "•"}
       </span>
       <div className="rounded-2xl border border-sand bg-paper p-4 transition hover:shadow-[var(--shadow-card)]">
@@ -86,7 +87,7 @@ function MessagesPanel({ elderId }: { elderId: string }) {
       <ul className="mt-4 space-y-2">
         {(data ?? []).slice(0, 8).map((m) => (
           <li key={m.messageId} className={cx("flex", m.direction === "to_elder" ? "justify-end" : "justify-start")}>
-            <div className={cx("max-w-[85%] rounded-2xl px-3.5 py-2 text-sm", m.direction === "to_elder" ? "rounded-br-md bg-forest text-white" : "rounded-bl-md bg-saffron-soft text-ink ring-1 ring-saffron/30")}>
+            <div className={cx("max-w-[85%] rounded-2xl px-3.5 py-2 text-sm", m.direction === "to_elder" ? "rounded-br-md bg-forest text-on-forest" : "rounded-bl-md bg-saffron-soft text-ink ring-1 ring-saffron/30")}>
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{m.direction === "to_elder" ? `${m.fromName} → Amma` : "Amma → family"}</p>
               <p>{m.text}</p>
               <p className="mt-0.5 text-[10px] opacity-70">{timeAgo(m.createdAt)} · {m.direction === "to_elder" ? (m.delivered ? "✓✓ heard in a call" : "⏳ waiting for the next call") : "sent with her permission"}</p>
@@ -116,7 +117,7 @@ function MedicinesPanel({ elderId, profile, reload }: { elderId: string; profile
           <div className="flex flex-wrap gap-1.5 sm:col-span-2">
             {["morning", "afternoon", "evening", "night"].map((s) => (
               <button key={s} onClick={() => setForm({ ...form, slots: form.slots.includes(s) ? form.slots.filter((x) => x !== s) : [...form.slots, s] })}
-                className={cx("rounded-full px-3 py-1 text-xs font-semibold ring-1", form.slots.includes(s) ? "bg-forest text-white ring-forest" : "bg-paper text-muted ring-sand-deep")}>{cap(s)}</button>
+                className={cx("rounded-full px-3 py-1 text-xs font-semibold ring-1", form.slots.includes(s) ? "bg-forest text-on-forest ring-forest" : "bg-paper text-muted ring-sand-deep")}>{cap(s)}</button>
             ))}
             <Button size="sm" className="ml-auto" onClick={add} disabled={!form.name || !form.dose || !form.slots.length}>Save</Button>
           </div>
@@ -145,85 +146,149 @@ export default function ElderPage() {
   const { data: calls } = useApi<TimelineCall[]>(`/elders/${id}/timeline?days=14`);
   const { data: trend } = useApi<TrendPoint[]>(`/elders/${id}/trends?days=14`);
   const { data: mem } = useApi<{ memories: Memory[]; privateCount: number }>(`/elders/${id}/memories`);
+  const { data: w } = useApi<Wellbeing>(`/elders/${id}/wellbeing`);
   const { bump } = useLive();
   const [openCall, setOpenCall] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   if (!today || !profile) return <div className="space-y-5"><Skeleton className="h-36" /><div className="grid gap-5 lg:grid-cols-2"><Skeleton className="h-80" /><Skeleton className="h-80" /></div></div>;
   const e = profile.elder;
 
+  const n = e.preferredName;
   return (
-    <div className="space-y-5">
-      <Card className="animate-fade-up">
-        <div className="flex flex-wrap items-center gap-5">
-          <Avatar name={e.name} size={88} ring={e.status === "active" ? "green" : "amber"} />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-saffron-deep">Daily check-in · consented</p>
-            <h1 className="font-display text-3xl font-semibold sm:text-4xl">{e.name} {e.preferredName}</h1>
-            <p className="mt-1 text-sm text-muted">{e.age} · {e.city} · {e.conditions.map(cap).join(", ")}</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <Badge tone="forest"><CalendarClock className="size-3" />Daily at {e.callTimeLocal}</Badge>
-              <Badge tone={e.status === "active" ? "forest" : "saffron"}>{e.status}{e.pausedUntil ? ` until ${e.pausedUntil}` : ""}</Badge>
-              <Badge tone="navy">{e.languages.map((l) => ({ kn: "ಕನ್ನಡ", hi: "हिन्दी", en: "English" })[l] ?? l).join(" · ")}</Badge>
-              <Badge><Phone className="size-3" />{e.phone}</Badge>
+    <div className="space-y-6">
+      {/* ---------- portrait ---------- */}
+      <section className="animate-fade-up relative overflow-hidden rounded-[28px] border border-sand bg-paper shadow-[var(--shadow-card)]">
+        <div className="k-kolam pointer-events-none absolute inset-0 opacity-60" aria-hidden />
+        <div className="relative grid gap-6 p-5 sm:p-8 lg:grid-cols-[1.3fr_1fr]">
+          <div className="flex flex-wrap items-center gap-5">
+            <Avatar name={e.name} size={96} ring={e.status === "active" ? "green" : "amber"} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold tracking-[0.22em] text-saffron-deep uppercase">Daily check-in · {e.status === "pending_consent" ? "awaiting consent" : "consented"}</p>
+              <h1 className="font-display text-[2.6rem] leading-none font-medium tracking-tight sm:text-[3.2rem]">{e.name} <span className="k-wonk text-saffron-deep">{n}</span></h1>
+              <p className="mt-2 text-sm text-muted">{e.age} · {e.city} · {e.conditions.map(cap).join(", ")}</p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <Badge tone="forest"><CalendarClock className="size-3" />Daily at {e.callTimeLocal}</Badge>
+                <Badge tone={e.status === "active" ? "forest" : "saffron"}>{e.status}{e.pausedUntil ? ` until ${e.pausedUntil}` : ""}</Badge>
+                <Badge tone="navy">{e.languages.map((l) => ({ kn: "ಕನ್ನಡ", hi: "हिन्दी", en: "English" })[l] ?? l).join(" · ")}</Badge>
+                <Badge><Phone className="size-3" />{e.phone}</Badge>
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" icon={Phone} href="tel:+910000000000">Call her yourself</Button>
-            <Button icon={PhoneOutgoing} onClick={async () => { await post(`/elders/${id}/call-now`); bump(); }}>KaiseHo call now</Button>
+          <div className="flex flex-col justify-between gap-4 lg:items-end">
+            {w?.highlights.at(-1) ? <HandNote by={`${n}, ${dayLabel(w.highlights.at(-1)!.date)}`} className="lg:text-right">{w.highlights.at(-1)!.text}</HandNote> : <span />}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" icon={Phone} href="tel:+910000000000">Call her yourself</Button>
+              <Button icon={PhoneOutgoing} onClick={async () => { await post(`/elders/${id}/call-now`); bump(); }}>KaiseHo, call now</Button>
+            </div>
           </div>
         </div>
-        <nav className="-mx-1 mt-5 flex gap-1 overflow-x-auto border-t border-sand pt-4">
-          {SECTIONS.map(([k, l]) => <a key={k} href={`#${k}`} className="rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap text-muted hover:bg-sand/50 hover:text-ink">{l}</a>)}
+        <nav className="relative flex gap-1 overflow-x-auto border-t border-sand px-4 py-2.5 scrollbar-thin sm:px-7">
+          {SECTIONS.map(([k, l], i) => <a key={k} href={`#${k}`} className="rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap text-muted transition hover:bg-sand/60 hover:text-ink"><span className="k-wonk mr-1.5 font-display text-saffron-deep tabular">{String(i + 1).padStart(2, "0")}</span>{l}</a>)}
         </nav>
-      </Card>
+      </section>
 
       {e.status === "pending_consent" ? (
         <Card tone="saffron">
           <div className="flex flex-wrap items-center gap-4">
             <Handshake className="size-8 text-forest" />
-            <div className="min-w-0 flex-1"><p className="font-bold">Consent first: no daily calls yet</p><p className="text-sm text-muted">KaiseHo makes one welcome call. It discloses it&apos;s an AI, asks if daily calls are okay, at what time, and what can be shared. The schedule starts only on a yes.</p></div>
+            <div className="min-w-0 flex-1"><p className="font-display text-lg">Consent first: no daily calls yet</p><p className="text-sm text-muted">KaiseHo makes one welcome call. It discloses it&apos;s an AI, asks if daily calls are okay, at what time, and what can be shared. The schedule starts only on a yes.</p></div>
             <Button icon={PhoneOutgoing} onClick={async () => { await post(`/elders/${id}/welcome-call`); bump(); }}>Make the welcome call</Button>
           </div>
         </Card>
       ) : profile.consent && (
-        <p className="flex flex-wrap items-center gap-2 rounded-2xl bg-forest-soft px-4 py-2.5 text-sm text-forest"><Handshake className="size-4" />
+        <p className="flex flex-wrap items-center gap-2 rounded-full bg-forest-soft px-4 py-2 text-[13px] text-forest"><Handshake className="size-4" />
           <b>Consent recorded</b> {new Date(profile.consent.recordedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} · daily calls {profile.consent.dailyCalls ? `yes${profile.consent.preferredTime ? ` at ${profile.consent.preferredTime}` : ""}` : "no"} · shares {[profile.consent.shareMedicines && "medicines", profile.consent.shareWellbeing && "wellbeing", profile.consent.shareMemories && "memories"].filter(Boolean).join(", ") || "safety alerts only"}
         </p>
       )}
 
-      <div id="today" className="grid scroll-mt-24 gap-5 lg:grid-cols-2">
+      {/* ---------- 01 wellbeing ---------- */}
+      <SectionHead id="wellbeing" n="01" title="Wellbeing" sub="from conversation, not ratings" />
+      {w ? (
+        <div className="grid gap-5 lg:grid-cols-12">
+          <Card className="lg:col-span-5">
+            <CardHeader icon={Sparkles} tone="saffron" kicker="Six dimensions · this week vs last" title="Her constellation" />
+            <div className="relative mx-auto w-full max-w-[320px]">
+              <Constellation w={w} />
+              <div className="pointer-events-none absolute inset-0 grid place-items-center"><div className="text-center"><p className="font-display text-[3rem] leading-none font-medium"><CountUp value={w.today?.index ?? 0} /></p><p className="text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">today</p></div></div>
+            </div>
+            <p className="text-center text-sm text-muted"><span className="font-semibold text-ink">{STATUS_WORD[w.status]}</span>{w.baseline.n >= 5 ? ` · her usual ${w.baseline.mean} ± ${w.baseline.sd}` : ""}</p>
+            {w.voice && <p className="mt-3 rounded-full bg-paper-2 px-3 py-1.5 text-center text-[12px] text-muted ring-1 ring-sand">Voice vitality · {w.voice.wpm} words/min · replies in {w.voice.replyGapSec.toFixed(1)}s</p>}
+          </Card>
+          <div className="space-y-5 lg:col-span-7">
+            <Card>
+              <CardHeader icon={TrendingUp} tone="saffron" kicker="30 days · hover any day" title="Day by day" />
+              <IndexRiver w={w} />
+            </Card>
+            <Card>
+              <CardHeader icon={Brain} tone="navy" kicker="Found in her own history" title="Patterns" />
+              <PatternList w={w} />
+            </Card>
+          </div>
+        </div>
+      ) : <Skeleton className="h-80" />}
+      <div id="today" className="grid scroll-mt-28 gap-5 lg:grid-cols-2">
         <TodayCard v={today} />
-        <Card>
-          <CardHeader icon={TrendingUp} kicker="14 days" title="Mood & pain" />
-          <MoodPainChart data={today.trend} height={250} />
-        </Card>
+        <InsightCards elderId={id} />
       </div>
 
+      {/* ---------- 02 health ---------- */}
+      <SectionHead id="health" n="02" title="Health" sub="readings, refills, the doctor" action={<Button size="sm" variant="ghost" href={`/elder/${id}/brief`}>Doctor brief <ArrowUpRight className="size-3.5" /></Button>} />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <VitalsCard elderId={id} />
+        <HealthCard elderId={id} />
+        <AppointmentsCard elderId={id} name={n} />
+        <HealthCardQR elderId={id} name={n} />
+      </div>
+      <section id="trends" className="grid scroll-mt-28 gap-5 lg:grid-cols-2">
+        <Card>
+          <CardHeader icon={Pill} tone="navy" kicker="Doses per day" title="Medicine adherence" />
+          {trend && <AdherenceChart data={trend} />}
+          <p className="mt-2 text-xs text-muted">Green = taken · red = missed. Critical medicines get one short follow-up call when a dose isn&apos;t taken yet.</p>
+        </Card>
+        <PrescriptionCard elderId={id} onSaved={reloadProfile} />
+      </section>
+
+      {/* ---------- 03 family ---------- */}
+      <SectionHead id="family" n="03" title="Family" sub="needs, calls, messages" />
+      <div className="grid gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-7"><NeedsCard elderId={id} name={n} /></div>
+        <div className="space-y-5 lg:col-span-5"><RotaCard elderId={id} name={n} /><VoiceNoteCard elderId={id} name={n} /></div>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section id="messages" className="scroll-mt-28"><MessagesPanel elderId={id} /></section>
+        <ReadbackCard elderId={id} name={n} />
+      </div>
+
+      {/* ---------- 04 life ---------- */}
+      <SectionHead id="life" n="04" title="Life admin" sub="reminders, occasions, pension" />
+      <div className="grid gap-5 lg:grid-cols-3">
+        <RemindersCard elderId={id} name={n} />
+        <OccasionsCard elderId={id} name={n} />
+        <PensionCard elderId={id} name={n} />
+      </div>
+
+      {/* ---------- 05 calls ---------- */}
+      <SectionHead id="calls" n="05" title="Every call" sub="summaries, quality checks, redacted transcripts" />
       <div className="grid gap-5 lg:grid-cols-5">
-        <section id="calls" className="scroll-mt-24 lg:col-span-3">
+        <section className="lg:col-span-3">
           <Card>
-            <CardHeader icon={HeartPulse} kicker="Every call, summarised for you" title="Check-in timeline" />
+            <CardHeader icon={HeartPulse} kicker="Summarised for you" title="Check-in timeline" />
             {!calls?.length ? <Empty icon={Phone} title="No calls yet" /> : (
               <ol className="relative space-y-3 before:absolute before:top-3 before:bottom-3 before:left-3 before:w-px before:bg-sand">
-                {calls.slice(0, 10).map((c) => <CallCard key={c.callId} c={c} elderId={id} open={openCall === c.callId} onToggle={() => setOpenCall(openCall === c.callId ? null : c.callId)} />)}
+                {calls.slice(0, showAll ? 14 : 4).map((c) => <CallCard key={c.callId} c={c} elderId={id} open={openCall === c.callId} onToggle={() => setOpenCall(openCall === c.callId ? null : c.callId)} />)}
               </ol>
             )}
+            {(calls?.length ?? 0) > 4 && <Button className="mt-4" variant="secondary" size="sm" onClick={() => setShowAll(!showAll)}>{showAll ? "Show fewer" : `Show all ${Math.min(14, calls!.length)} calls`}</Button>}
           </Card>
         </section>
         <div className="space-y-5 lg:col-span-2">
-          <section id="trends" className="scroll-mt-24">
-            <Card>
-              <CardHeader icon={Pill} tone="navy" kicker="Doses per day" title="Medicine adherence" />
-              {trend && <AdherenceChart data={trend} />}
-              <p className="mt-2 text-xs text-muted">Green = taken · red = missed. 2 missed days in a row sends you a nudge.</p>
-            </Card>
-          </section>
-          <section id="memories" className="scroll-mt-24">
+          <section id="memories" className="scroll-mt-28">
             <Card>
               <CardHeader icon={Brain} kicker="What KaiseHo remembers" title="Memories & follow-ups" />
               <ul className="space-y-2">
-                {(mem?.memories ?? []).slice(0, 8).map((m) => (
+                {(mem?.memories ?? []).slice(0, 9).map((m) => (
                   <li key={m.memoryId} className="flex items-start gap-2.5 text-sm">
                     <span className={cx("mt-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase", MEM_STYLE[m.type])}>{m.type}</span>
                     <span className="flex-1">{m.text}{m.followUpAfter && !m.followUpDone && <span className="ml-1 text-xs text-saffron-deep">· will ask</span>}{m.followUpDone && <span className="ml-1 text-xs text-forest">· asked ✓</span>}</span>
@@ -231,49 +296,37 @@ export default function ElderPage() {
                 ))}
               </ul>
               {(mem?.privateCount ?? 0) > 0 && (
-                <p className="mt-4 flex items-center gap-2 rounded-xl bg-cream px-3 py-2 text-xs text-muted ring-1 ring-sand"><Lock className="size-3.5" />{mem!.privateCount} private item{mem!.privateCount > 1 ? "s" : ""}: Amma asked to keep {mem!.privateCount > 1 ? "them" : "it"} private.</p>
+                <p className="mt-4 flex items-center gap-2 rounded-xl bg-cream px-3 py-2 text-xs text-muted ring-1 ring-sand"><Lock className="size-3.5" />{mem!.privateCount} private item{mem!.privateCount > 1 ? "s" : ""}: {n} asked to keep {mem!.privateCount > 1 ? "them" : "it"} private.</p>
               )}
             </Card>
           </section>
+          <Card>
+            <CardHeader icon={TrendingUp} kicker="14 days" title="Mood & pain" />
+            <MoodPainChart data={today.trend} height={200} />
+          </Card>
         </div>
       </div>
 
-      <div id="health" className="grid scroll-mt-24 gap-5 lg:grid-cols-2">
-        <HealthCard elderId={id} />
-        <div className="space-y-5">
-          <AppointmentsCard elderId={id} name={e.preferredName} />
-          <PrescriptionCard elderId={id} onSaved={reloadProfile} />
-        </div>
-      </div>
-
-      <div id="life" className="grid scroll-mt-24 gap-5 lg:grid-cols-2">
-        <RemindersCard elderId={id} name={e.preferredName} />
-        <OccasionsCard elderId={id} name={e.preferredName} />
-        <PensionCard elderId={id} name={e.preferredName} />
-        <ReadbackCard elderId={id} name={e.preferredName} />
-      </div>
-
+      {/* ---------- 06 care settings ---------- */}
+      <SectionHead id="medicines" n="06" title="Care settings" sub="medicines, digest, schedule" />
       <div className="grid gap-5 lg:grid-cols-2">
-        <section id="messages" className="scroll-mt-24"><MessagesPanel elderId={id} /></section>
-        <section id="medicines" className="scroll-mt-24"><MedicinesPanel elderId={id} profile={profile} reload={reloadProfile} /></section>
+        <MedicinesPanel elderId={id} profile={profile} reload={reloadProfile} />
+        <DigestCard elderId={id} name={n} />
       </div>
-
-      <DigestCard elderId={id} name={e.preferredName} />
-
-      <section id="schedule" className="scroll-mt-24">
+      <section id="schedule" className="scroll-mt-28">
         <Card>
-          <CardHeader icon={Clock} kicker="Amma can change this by voice too" title="Call schedule" />
+          <CardHeader icon={Clock} kicker={`${n} can change this by voice too`} title="Call schedule" />
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-sm">
               <span className="mb-1 block text-xs font-semibold text-muted">Daily call time</span>
-              <input type="time" defaultValue={e.callTimeLocal} onChange={(ev) => setTime(ev.target.value)} className="rounded-xl border border-sand-deep bg-paper px-3 py-2 outline-none focus:border-saffron" />
+              <input type="time" defaultValue={e.callTimeLocal} onChange={(ev) => setTime(ev.target.value)} className="rounded-full border border-sand-deep bg-paper px-4 py-2 outline-none focus:border-saffron" />
             </label>
             <Button variant="secondary" disabled={!time} onClick={async () => { await api(`/elders/${id}/schedule`, { method: "PATCH", body: JSON.stringify({ callTimeLocal: time }) }); reloadProfile(); }}>Save time</Button>
             <Button variant="ghost" onClick={async () => { await api(`/elders/${id}/schedule`, { method: "PATCH", body: JSON.stringify(e.status === "active" ? { status: "paused" } : { status: "active", pausedUntil: undefined }) }); reloadProfile(); }}>
               {e.status === "active" ? "Pause calls" : "Resume calls"}
             </Button>
           </div>
-          <p className="mt-3 text-xs text-muted">Reminder and callback calls are under <a href="#life" className="underline">Reminders</a>.</p>
+          <p className="mt-3 text-xs text-muted">Reminder and callback calls are under <a href="#life" className="underline">Life admin</a>.</p>
         </Card>
       </section>
     </div>

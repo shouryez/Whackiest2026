@@ -51,7 +51,7 @@ export async function todayView(elder: Elder) {
     },
     meds: elder.privacy.shareMedicines ? medSlots : [],
     wellbeing: elder.privacy.shareWellbeing && latest
-      ? { mood: latest.mood, sleep: latest.sleep, pain: latest.pain, energy: latest.energy, appetite: latest.appetite }
+      ? { mood: latest.mood, sleep: latest.sleep, pain: latest.pain, energy: latest.energy, appetite: latest.appetite, social: latest.social, activity: latest.activity, highlight: latest.highlight }
       : null,
     trend: history.map((c) => ({ date: c.date, mood: c.mood ?? null, pain: c.pain?.level ?? null })),
     adherence14d: adherence,

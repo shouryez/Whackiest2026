@@ -34,7 +34,7 @@ export default function DoctorBrief() {
         <Button variant="ghost" icon={ArrowLeft} href={`/elder/${id}`}>Back</Button>
         <Button icon={Printer} onClick={() => window.print()}>Print / save as PDF</Button>
       </div>
-      <article className="sheet rounded-3xl border border-sand bg-white p-8 text-[14px] leading-relaxed shadow-[var(--shadow-card)]">
+      <article className="sheet rounded-3xl border border-sand bg-paper p-8 text-[14px] leading-relaxed shadow-[var(--shadow-card)]">
         <header className="flex items-start justify-between border-b border-sand pb-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-saffron-deep">Doctor brief · {b.period.days} days</p>

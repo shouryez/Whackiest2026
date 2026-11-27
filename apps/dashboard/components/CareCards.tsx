@@ -117,7 +117,7 @@ export function PrescriptionCard({ elderId, onSaved }: { elderId: string; onSave
                   <span className="text-muted">“{r.frequencyText || "?"}”{r.duration ? ` · ${r.duration}` : ""}{r.asNeeded ? " · only when needed" : ""} →</span>
                   {SLOTS.map((s) => (
                     <button key={s} onClick={() => setRows(rows.map((x, j) => j === i ? { ...x, slots: x.slots.includes(s) ? x.slots.filter((y) => y !== s) : [...x.slots, s] } : x))}
-                      className={cx("rounded-full px-2.5 py-0.5 font-semibold ring-1", r.slots.includes(s) ? "bg-forest text-white ring-forest" : "bg-paper text-muted ring-sand-deep")}>{s}</button>
+                      className={cx("rounded-full px-2.5 py-0.5 font-semibold ring-1", r.slots.includes(s) ? "bg-forest text-on-forest ring-forest" : "bg-paper text-muted ring-sand-deep")}>{s}</button>
                   ))}
                 </div>
               </li>

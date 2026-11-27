@@ -1,64 +1,201 @@
 @import "tailwindcss";
 
-@theme {
-  --color-cream: #fbf7ee;
-  --color-paper: #fffdf8;
-  --color-sand: #ede3cf;
-  --color-sand-deep: #dccfb3;
-  --color-ink: #1c1b18;
-  --color-muted: #6b6459;
-  --color-forest: #1f5c3d;
-  --color-forest-deep: #143d29;
-  --color-forest-soft: #e3f0e6;
-  --color-saffron: #fd9b36;
-  --color-saffron-deep: #c96a0c;
-  --color-saffron-soft: #fff0dc;
-  --color-navy: #1b1f6b;
-  --color-rust: #c2410c;
-  --color-danger: #c62828;
-  --color-danger-soft: #fdeaea;
+/* Dark mode follows data-theme on <html> (set before paint by the inline script in layout.tsx). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * KaiseHo "warm editorial" design system.
+ * Light: paper and ink, like a family magazine. Dark: indigo night with lamp-lit saffron.
+ * Every colour is a variable, so all components switch theme without per-component dark: classes.
+ */
+@theme inline {
+  --color-cream: var(--k-bg);
+  --color-paper: var(--k-surface);
+  --color-paper-2: var(--k-surface-2);
+  --color-sand: var(--k-line);
+  --color-sand-deep: var(--k-line-strong);
+  --color-ink: var(--k-ink);
+  --color-muted: var(--k-muted);
+  --color-forest: var(--k-forest);
+  --color-forest-deep: var(--k-forest-deep);
+  --color-forest-soft: var(--k-forest-soft);
+  --color-on-forest: var(--k-on-forest);
+  --color-saffron: var(--k-saffron);
+  --color-saffron-deep: var(--k-saffron-deep);
+  --color-saffron-soft: var(--k-saffron-soft);
+  --color-navy: var(--k-navy);
+  --color-navy-soft: var(--k-navy-soft);
+  --color-rust: var(--k-rust);
+  --color-danger: var(--k-danger);
+  --color-danger-soft: var(--k-danger-soft);
+  --color-teal: var(--k-teal);
+  --color-teal-soft: var(--k-teal-soft);
   --color-t0: #8a8f98;
-  --color-t1: #2a5bc8;
-  --color-t2: #b45309;
-  --color-t3: #c62828;
-  --color-night: #0a0d22;
-  --color-night-2: #11163a;
-  --color-night-3: #1b2150;
-  --font-sans: var(--font-jakarta), "Segoe UI", system-ui, sans-serif;
+  --color-t1: #3a6fd8;
+  --color-t2: #c0761a;
+  --color-t3: #d64534;
+  --color-night: #0b0d1c;
+  --color-night-2: #121630;
+  --color-night-3: #1d2246;
+  --font-sans: var(--font-body), "Segoe UI", system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;
-  --shadow-card: 0 1px 2px rgba(28, 27, 24, 0.04), 0 4px 16px rgba(28, 27, 24, 0.05);
-  --shadow-lift: 0 2px 4px rgba(28, 27, 24, 0.05), 0 12px 32px rgba(28, 27, 24, 0.09);
+  --font-hand: var(--font-caveat), "Segoe Print", cursive;
+  --shadow-card: var(--k-shadow-card);
+  --shadow-lift: var(--k-shadow-lift);
+}
+
+:root {
+  color-scheme: light;
+  --k-bg: #f3ece0;
+  --k-surface: #fbf7ef;
+  --k-surface-2: #f6efe3;
+  --k-line: #e6dac6;
+  --k-line-strong: #cdbda0;
+  --k-ink: #211b14;
+  --k-muted: #6f6556;
+  --k-forest: #2c5b44;
+  --k-forest-deep: #1d3f2f;
+  --k-forest-soft: #e1eadf;
+  --k-on-forest: #ffffff;
+  --k-saffron: #e08a2c;
+  --k-saffron-deep: #a95a10;
+  --k-saffron-soft: #f7e5cb;
+  --k-navy: #2f3a78;
+  --k-navy-soft: #e5e7f4;
+  --k-rust: #b5452a;
+  --k-danger: #b42a1f;
+  --k-danger-soft: #f6e0dc;
+  --k-teal: #1e6f6a;
+  --k-teal-soft: #dcefec;
+  --k-glow: rgba(224, 138, 44, 0.16);
+  --k-shadow-card: 0 1px 0 rgba(33, 27, 20, 0.04), 0 10px 30px -18px rgba(70, 45, 15, 0.35);
+  --k-shadow-lift: 0 2px 0 rgba(33, 27, 20, 0.04), 0 22px 50px -24px rgba(70, 45, 15, 0.45);
+  --k-grain-opacity: 0.5;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --k-bg: #0c0e1d;
+  --k-surface: #151a30;
+  --k-surface-2: #1a2039;
+  --k-line: #272e4f;
+  --k-line-strong: #39416a;
+  --k-ink: #f1eadc;
+  --k-muted: #a7a093;
+  --k-forest: #86cba3;
+  --k-forest-deep: #6fb78e;
+  --k-forest-soft: #1b2d2a;
+  --k-on-forest: #0c0e1d;
+  --k-saffron: #f2a14a;
+  --k-saffron-deep: #f6b467;
+  --k-saffron-soft: #33261a;
+  --k-navy: #a9b4f2;
+  --k-navy-soft: #1f2547;
+  --k-rust: #e37a5c;
+  --k-danger: #ef7a6c;
+  --k-danger-soft: #3a1d22;
+  --k-teal: #7fd1c7;
+  --k-teal-soft: #15302f;
+  --k-glow: rgba(242, 161, 74, 0.14);
+  --k-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 16px 40px -22px rgba(0, 0, 0, 0.7);
+  --k-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 26px 60px -24px rgba(0, 0, 0, 0.8);
+  --k-grain-opacity: 0.25;
 }
 
 html,
 body {
-  background: var(--color-cream);
-  color: var(--color-ink);
+  background: var(--k-bg);
+  color: var(--k-ink);
 }
 
+/* Paper grain (light) / night sky (dark), plus a warm lamp glow at the top. */
 body {
-  background-image: radial-gradient(circle at 1px 1px, rgba(31, 92, 61, 0.05) 1px, transparent 0);
-  background-size: 22px 22px;
+  background-image:
+    radial-gradient(1200px 520px at 12% -10%, var(--k-glow), transparent 60%),
+    radial-gradient(900px 480px at 100% 0%, color-mix(in oklab, var(--k-forest) 7%, transparent), transparent 60%);
+  background-attachment: fixed;
 }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--k-grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .12 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme="dark"] body::before {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 120px 80px, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 200px 160px, rgba(242, 161, 74, 0.45), transparent),
+    radial-gradient(1px 1px at 60px 210px, rgba(255, 255, 255, 0.3), transparent);
+  background-size: 260px 260px;
+}
+body > * { position: relative; z-index: 1; }
 
-::selection { background: var(--color-saffron-soft); }
+::selection { background: var(--k-saffron-soft); color: var(--k-ink); }
 
+/* ---------- editorial motifs ---------- */
+/* Block-print textile band: diamonds and dots, used as section rules and card crowns. */
+.k-textile {
+  height: 10px;
+  background-image:
+    radial-gradient(circle at 10px 5px, var(--k-saffron) 1.6px, transparent 2px),
+    linear-gradient(45deg, transparent 42%, color-mix(in oklab, var(--k-rust) 55%, transparent) 42% 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, color-mix(in oklab, var(--k-rust) 55%, transparent) 42% 58%, transparent 58%);
+  background-size: 20px 10px, 20px 10px, 20px 10px;
+  background-position: 0 0, 10px 0, 10px 0;
+  opacity: 0.55;
+}
+.k-rule { border: 0; border-top: 1px solid var(--k-line-strong); position: relative; }
+.k-rule::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; border-top: 1px solid var(--k-line); }
+/* Kolam-dot field for hero backgrounds. */
+.k-kolam {
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--k-saffron) 35%, transparent) 1.2px, transparent 1.6px);
+  background-size: 18px 18px;
+  mask-image: radial-gradient(ellipse at 80% 20%, #000 0%, transparent 70%);
+}
+.k-dropcap::first-letter {
+  float: left;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 3.4em;
+  line-height: 0.82;
+  padding: 0.06em 0.08em 0 0;
+  color: var(--k-saffron-deep);
+  font-weight: 600;
+}
+.font-display { font-variation-settings: "SOFT" 50, "WONK" 0; }
+.k-wonk { font-variation-settings: "SOFT" 100, "WONK" 1; font-style: italic; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ---------- motion ---------- */
 @keyframes slide-in { from { opacity: 0; transform: translateY(-8px) scale(0.99); } to { opacity: 1; transform: none; } }
 .animate-slide-in { animation: slide-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
-@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.animate-fade-up { animation: fade-up 0.5s ease-out both; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.animate-fade-up { animation: fade-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > * { animation: fade-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger > *:nth-child(5) { animation-delay: 0.24s; }
+.stagger > *:nth-child(6) { animation-delay: 0.3s; }
 
 @keyframes ring-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(253, 155, 54, 0.55); }
-  70% { box-shadow: 0 0 0 28px rgba(253, 155, 54, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(253, 155, 54, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--k-saffron) 55%, transparent); }
+  70% { box-shadow: 0 0 0 28px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 .animate-ring { animation: ring-pulse 1.4s ease-out infinite; }
 
+/* The breathing orb: a live call. */
+@keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.12); opacity: 1; } }
+.animate-breathe { animation: breathe 2.6s ease-in-out infinite; }
+
 @keyframes danger-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.45); }
-  50% { box-shadow: 0 0 0 10px rgba(198, 40, 40, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--k-danger) 45%, transparent); }
+  50% { box-shadow: 0 0 0 10px transparent; }
 }
 .animate-danger { animation: danger-pulse 1.6s ease-in-out infinite; }
 
@@ -68,9 +205,22 @@ body {
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .animate-ticker { animation: ticker 40s linear infinite; }
 
-.scrollbar-thin::-webkit-scrollbar { width: 6px; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(140, 147, 201, 0.35); border-radius: 3px; }
+/* SVG lines that draw themselves (constellation, sparklines). */
+@keyframes draw { from { stroke-dashoffset: var(--len, 1000); } to { stroke-dashoffset: 0; } }
+.animate-draw { stroke-dasharray: var(--len, 1000); animation: draw 1.4s cubic-bezier(0.6, 0, 0.2, 1) both; }
+@keyframes pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
+.animate-pop { transform-box: fill-box; transform-origin: center; animation: pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+@keyframes twinkle { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.animate-twinkle { animation: twinkle 3s ease-in-out infinite; }
+
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--k-muted) 35%, transparent); border-radius: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-slide-in, .animate-fade-up, .animate-ring, .animate-danger, .wave-bar, .animate-ticker { animation: none; }
+  .animate-slide-in, .animate-fade-up, .stagger > *, .animate-ring, .animate-breathe, .animate-danger, .wave-bar, .animate-ticker, .animate-draw, .animate-pop, .animate-twinkle { animation: none; }
+}
+
+@media print {
+  body::before { display: none; }
+  body { background: #fff !important; }
 }

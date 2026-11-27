@@ -25,7 +25,7 @@ export function HealthCard({ elderId }: { elderId: string }) {
       <ul className="space-y-2">
         {data.refills.length === 0 && <li className="text-sm text-muted">Add a tablet count to a medicine to get refill reminders.</li>}
         {data.refills.map((r) => {
-          const tone = r.daysLeft <= 2 ? "bg-danger" : r.daysLeft <= 5 ? "bg-saffron" : "bg-[#2e9e5b]";
+          const tone = r.daysLeft <= 2 ? "bg-danger" : r.daysLeft <= 5 ? "bg-saffron" : "bg-forest";
           return (
             <li key={r.medId} className="rounded-2xl bg-cream/70 p-3 ring-1 ring-sand">
               <div className="flex items-center justify-between gap-2 text-sm">

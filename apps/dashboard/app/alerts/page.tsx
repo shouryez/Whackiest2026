@@ -20,7 +20,7 @@ export default function AlertsPage() {
     <div>
       <PageTitle kicker="Routed by severity" title="Alerts">
         <div className="inline-flex flex-wrap rounded-xl bg-paper p-1 ring-1 ring-sand">
-          {FILTERS.map(([k, l]) => <button key={k} onClick={() => setF(k)} className={cx("rounded-lg px-3 py-1.5 text-sm font-semibold", f === k ? "bg-forest text-white" : "text-muted hover:text-ink")}>{l}</button>)}
+          {FILTERS.map(([k, l]) => <button key={k} onClick={() => setF(k)} className={cx("rounded-lg px-3 py-1.5 text-sm font-semibold", f === k ? "bg-forest text-on-forest" : "text-muted hover:text-ink")}>{l}</button>)}
         </div>
       </PageTitle>
       <div className="mb-5 grid gap-3 sm:grid-cols-4">
@@ -36,7 +36,7 @@ export default function AlertsPage() {
             return (
               <Card key={a.alertId} tone={hot && a.status === "open" ? "danger" : "paper"} className="animate-fade-up !p-5">
                 <div className="flex flex-wrap items-start gap-4">
-                  <span className={cx("grid size-11 shrink-0 place-items-center rounded-2xl", hot ? "bg-danger text-white" : "bg-forest-soft text-forest")}><Icon className="size-5" /></span>
+                  <span className={cx("grid size-11 shrink-0 place-items-center rounded-2xl", hot ? "bg-danger text-on-forest" : "bg-forest-soft text-forest")}><Icon className="size-5" /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-bold">{a.title}</h3>
