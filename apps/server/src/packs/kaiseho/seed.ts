@@ -28,7 +28,7 @@ export async function seedDemo(opts: { resetEvents?: boolean; inLaws?: boolean }
 
   const elder: Elder = {
     elderId: DEMO.elderId, familyId: DEMO.familyId, name: "Lakshmi", preferredName: "Amma", gender: "female", age: 68,
-    languages: ["kn", "hi"], primaryLanguage: "kn", phone: process.env.DEMO_ELDER_PHONE || "+910000000000",
+    languages: ["kn", "hi"], primaryLanguage: process.env.DEMO_ELDER_LANGUAGE === "hi" ? "hi" : process.env.DEMO_ELDER_LANGUAGE === "en" ? "en" : "kn", phone: process.env.DEMO_ELDER_PHONE || "+910000000000",
     city: "Mysuru", lat: 12.2958, lon: 76.6394, address: "(demo address, Mysuru)", tz: "Asia/Kolkata",
     callTimeLocal: "09:00", callDays: [0, 1, 2, 3, 4, 5, 6], conditions: ["hypertension", "type 2 diabetes", "knee arthritis"],
     status: "active", privacy: { shareMedicines: true, shareWellbeing: true, shareMemories: true }, createdAt,
