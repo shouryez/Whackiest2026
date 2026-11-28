@@ -141,7 +141,7 @@ export default function LiveOps() {
     <div className="flex min-h-screen flex-col bg-night text-[#e8eaf6]" style={{ backgroundImage: "radial-gradient(circle at 20% 0%, rgba(253,155,54,0.08), transparent 40%), radial-gradient(circle at 90% 100%, rgba(42,91,200,0.12), transparent 45%)" }}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-6 py-4">
         <div className="flex items-center gap-4">
-          <Link href="/" className="grid size-9 place-items-center rounded-xl bg-white/5 hover:bg-white/10" aria-label="Back"><ArrowLeft className="size-4" /></Link>
+          <Link href="/app" className="grid size-9 place-items-center rounded-xl bg-white/5 hover:bg-white/10" aria-label="Back"><ArrowLeft className="size-4" /></Link>
           <div>
             <p className="font-display text-2xl font-semibold">Ek Call · <span className="text-saffron">KaiseHo</span> Live Ops</p>
             <p className="text-xs text-[#8c93c9]">Every MCP tool call, the moment it happens · colour = risk tier</p>

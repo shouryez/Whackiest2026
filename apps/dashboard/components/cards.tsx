@@ -52,7 +52,7 @@ export function NudgeCard({ nudge, starters, elderId, name }: { nudge?: Nudge | 
     <Card tone="saffron" className="h-full">
       <CardHeader icon={Lightbulb} tone="saffron" kicker={nudge ? `Nudge · ${timeAgo(nudge.createdAt)}` : "Conversation starters"}
         title={<span className="font-display text-xl font-semibold sm:text-2xl">{nudge?.text ?? `Things to talk about with ${name} tonight`}</span>} />
-      <ul className="grid gap-2.5 sm:grid-cols-3">
+      <ul className="grid gap-2.5">
         {list.slice(0, 3).map((s, i) => (
           <li key={i} className="rounded-2xl bg-paper/80 p-3.5 ring-1 ring-saffron/25">
             <p className="text-sm leading-snug font-semibold">“{s.starter}”</p>

@@ -31,7 +31,7 @@ export default function DoctorBrief() {
     <div className="mx-auto max-w-3xl">
       <style>{`@media print { aside, header, nav, .no-print { display: none !important; } body { background: white !important; } main { padding: 0 !important; } .sheet { box-shadow: none !important; border: none !important; } }`}</style>
       <div className="no-print mb-4 flex items-center justify-between">
-        <Button variant="ghost" icon={ArrowLeft} href={`/elder/${id}`}>Back</Button>
+        <Button variant="ghost" icon={ArrowLeft} href="/app/health">Back</Button>
         <Button icon={Printer} onClick={() => window.print()}>Print / save as PDF</Button>
       </div>
       <article className="sheet rounded-3xl border border-sand bg-paper p-8 text-[14px] leading-relaxed shadow-[var(--shadow-card)]">

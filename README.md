@@ -60,18 +60,24 @@ Without a `.env`, the dev tokens are `dev-agent-token`, `dev-family-token` and `
 | `pnpm --filter @kaiseho/infra run deploy` | AWS stack (ap-south-1). Then `secrets:push` |
 
 ### What's in the box
-**Dashboard** (http://localhost:3000):
-- **Overview:** family-calls-this-week metric, nudge with conversation starters, latest check-in summary (English / ಕನ್ನಡ), today card, 14-day mood and pain chart, live activity.
-- **Live Ops** (`/live`): a projector view. Shows call status, the live conversation interleaved with MCP tool calls colour-coded by risk tier, alert fan-out, summary and nudge. Has demo controls: call now, play demo call, emergency, no answer, reset.
-- **Amma's page:** call timeline with summaries, quality checks and redacted transcripts (deleted after 24 h); mood/pain and adherence charts; memories; health (refills, doctor brief, appointments, prescription photo); reminders and callbacks; occasions; pension life certificate; "what she hears when she asks what you were told"; messages; medicines; schedule.
-- **Alerts:** shows severity routing; acknowledge from here.
-- **Privacy & trust:** her sharing choices, "what KaiseHo stored today", retention, risk tiers, delete everything.
-- **Audit log:** filterable.
-- **Connect:** Claude MCP URL/token and Telegram link codes.
+**Landing page** (http://localhost:3000): the story of KaiseHo with scroll-driven animation, including a live call on a phone, a pinned "how it works" walkthrough, a live Scam Shield meter, the MCP "two doors" diagram and a features bento. Midnight Marigold design language, light and dark.
+
+**Family app** (http://localhost:3000/app), a multi-page app with a sidebar, a parent switcher, a ⌘K command palette and an alerts drawer:
+- **Overview:** her day in one sentence, wellbeing index, today's tiles (mood, sleep, medicines, next call), latest check-in, conversation starters, AI insight cards, the household list, the latest story and the mind gym.
+- **Wellbeing:** six-dimension constellation, 30-day index river, patterns, voice vitality, mind gym trends.
+- **Health:** home readings, medicines, adherence, refills, appointments, prescription photo, emergency health card QR, doctor brief.
+- **Calls:** call style (clear assistant or warm companion), schedule and away mode, every check-in with redacted transcripts, weekly audio digest.
+- **Family:** shared household list board, messages, call rota, grandchildren's voice notes, "what she hears", family circle with Telegram link codes.
+- **Story book** (Yaadein): her life stories as chapters, ask her a question, waiting questions.
+- **Life admin:** reminder calls, occasions and festivals, pension life certificate.
+- **Alerts & safety, Privacy & trust, Audit log, Connect Claude.**
+- **Live Ops** (`/live`): a projector view. Shows the live conversation interleaved with MCP tool calls colour-coded by risk tier, alert fan-out, and demo controls.
+
+**Telegram bot:** a clean card after every call. One-tap buttons update every sibling's copy ("✅ Ravi is on it"). Commands: `/today`, `/tell`, `/needs`, `/meds`, `/call`, `/remind tomorrow 9am eye drops`, `/story`, `/stories`, `/away`, `/digest`. Plain text and voice notes become messages for her next call.
 
 **Server:**
-- **`/mcp/agent`** (voice agent, 21 tools, incl. `log_vital`, `add_need`): `log_medication`, `log_wellbeing`, `save_memory`, `check_scam`, `send_family_message`, `get_today_context`, `recall_memory`, `mark_message_delivered`, `set_reminder`, `request_callback`, `update_call_preferences`, `record_consent`, `raise_emergency`, `log_scam_drill`, `request_appointment`, `get_shared_with_family`, `keep_private`, `log_life_certificate`, `relay_wish`
-- **`/mcp/family`** (Claude, 35 tools, incl. wellbeing + AI suggestions, readings, needs, call rota, health card): weekly summary, trends, status, alerts + ack, conversation starters, audit log, call history, add/update/remove medication, leave a message, call now, set schedule, doctor brief, refills, book/get appointments, reminders (get/set/cancel), occasions (get/add), pension life certificate (status/mark), and "what she hears" (the read-back). Try it with `pnpm ask-family`.
+- **`/mcp/agent`** (voice agent, 23 tools, incl. `log_vital`, `add_need`, `save_life_story`, `log_brain_game`): `log_medication`, `log_wellbeing`, `save_memory`, `check_scam`, `send_family_message`, `get_today_context`, `recall_memory`, `mark_message_delivered`, `set_reminder`, `request_callback`, `update_call_preferences`, `record_consent`, `raise_emergency`, `log_scam_drill`, `request_appointment`, `get_shared_with_family`, `keep_private`, `log_life_certificate`, `relay_wish`
+- **`/mcp/family`** (Claude, 39 tools, incl. wellbeing + AI suggestions, readings, needs, call rota, health card, story book, mind gym, call style): weekly summary, trends, status, alerts + ack, conversation starters, audit log, call history, add/update/remove medication, leave a message, call now, set schedule, doctor brief, refills, book/get appointments, reminders (get/set/cancel), occasions (get/add), pension life certificate (status/mark), and "what she hears" (the read-back). Try it with `pnpm ask-family`.
 - **Call engine:** a context builder pushes dynamic variables (meds, follow-ups, messages, last summary, live weather). Outbound calls go through ElevenLabs + Twilio, with a labelled *simulated* mode when no keys are set. There is also a no-answer ladder and a local scheduler for reminders, callbacks, retries and daily calls.
 - **Post-call brain:** HMAC-verified webhook, then redacted transcript turns purged after 24 h, then the insight pass (LLM via `LLM_PROVIDER`, or deterministic rules), then memories, quality checks, flag alerts, and nudges + starters. When Amma mentions a family call, it counts toward the metric.
 - **Safety:** risk tiers T0–T3 enforced in code. The emergency cascade alerts all family, places briefing calls to the son and the neighbour, and repeats until acknowledged. Scam Shield, PII redaction (en/hi/kn), and an audit of every call.
