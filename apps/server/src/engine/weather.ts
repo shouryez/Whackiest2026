@@ -11,7 +11,7 @@ const WMO: Record<number, string> = {
 };
 
 export async function weatherNote(city: string, lat?: number, lon?: number): Promise<string> {
-  if (lat === undefined || lon === undefined) return "";
+  if (lat === undefined || lon === undefined || process.env.VITEST) return ""; // tests never touch the network
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 3600_000) return hit.note;

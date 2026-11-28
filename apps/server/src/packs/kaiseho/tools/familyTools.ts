@@ -22,6 +22,8 @@ import { logVital, vitalsSummary } from "../vitals";
 import { addNeeds, claimNeed, completeNeed, gasStatus } from "../needs";
 import { callRota, memberName } from "../rota";
 import { cardUrl, ensureCardToken } from "../card";
+import { askStory, storyBook } from "../stories";
+import { mindSummary } from "../mindgym";
 
 /**
  * /mcp/family tools (plan.md Section 10.2): the child's door, used from Claude or any MCP client.
@@ -337,5 +339,31 @@ export const FAMILY_TOOLS = {
     description: "Link to her emergency health card (QR for neighbours / paramedics): conditions, medicines, allergies, contacts.",
     shape: { elder_id },
     spec: { name: "get_health_card", tier: "T0", label: () => "🆘 Family opened the health card", run: async (_a, { elder }) => { await ensureCardToken(elder); return { url: cardUrl(elder), note: "Print the QR from the dashboard and stick it on her fridge." }; } },
+  }),
+  get_life_stories: t({
+    description: "Her story book: life stories she told KaiseHo (childhood, wedding, raising the family, recipes, advice), only if she chose to share memories. Also the questions waiting to be asked.",
+    shape: { elder_id },
+    spec: { name: "get_life_stories", tier: "T0", maxResultChars: 6000, label: () => "📖 Family read her story book", run: async (_a, { elder }) => storyBook(elder) },
+  }),
+  request_story: t({
+    description: "Ask her for a story: KaiseHo asks your question warmly in her next call and the story arrives in her book and on Telegram. E.g. 'How did you and Appa meet?'",
+    shape: { elder_id, question: z.string().min(8).max(200) },
+    spec: {
+      name: "request_story", tier: "T1", label: (a) => `📖 Story question for her next call: "${a.question}"`,
+      run: async (a, { elder, actor }) => { const ask = await askStory(elder, a.question, await memberName(elder.familyId, actor)); return { ok: true, ask_id: ask.askId, note: "She'll be asked in her next regular check-in." }; },
+    },
+  }),
+  get_mind_gym: t({
+    description: "Her playful memory-game results (three-word recall, naming games) and the trend vs her own usual. Not a medical test; a sustained dip is worth mentioning to her doctor.",
+    shape: { elder_id },
+    spec: { name: "get_mind_gym", tier: "T0", label: () => "🧩 Family checked the mind gym", run: async (_a, { elder }) => mindSummary(elder) },
+  }),
+  set_call_style: t({
+    description: "How KaiseHo sounds to her: 'clear' (short, to the point, assistant-like) or 'warm' (chatty companion). Her own preference wins if she says so in a call.",
+    shape: { elder_id, style: z.enum(["clear", "warm"]) },
+    spec: {
+      name: "set_call_style", tier: "T1", label: (a) => `🎙️ Call style: ${a.style}`,
+      run: async (a, { elder }) => { elder.voiceStyle = a.style; await getRepo().putElder(elder); return { ok: true, style: a.style }; },
+    },
   }),
 };

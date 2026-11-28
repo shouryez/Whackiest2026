@@ -38,6 +38,7 @@ export async function seedDemo(opts: { resetEvents?: boolean; inLaws?: boolean }
     // Emergency card + home readings + LPG tracking.
     allergies: ["Sulfa drugs"], bloodGroup: "B+", vitalsTracked: ["sugar", "bp"],
     gas: { lastRefill: addDays(localDate("Asia/Kolkata"), -40), intervalDays: 45 },
+    voiceStyle: "warm",
   };
   await repo.putElder(elder);
 
@@ -109,6 +110,25 @@ export async function seedDemo(opts: { resetEvents?: boolean; inLaws?: boolean }
   const mmdd = (d: string) => d.slice(5);
   await repo.putOccasion({ familyId: DEMO.familyId, occasionId: "occ_aarav_bday", elderId: elder.elderId, title: "Aarav's birthday", kind: "birthday", date: mmdd(addDays(today, 2)), person: "Aarav", relation: "grandson", createdBy: "family:mem_ravi", createdAt });
   await repo.putOccasion({ familyId: DEMO.familyId, occasionId: "occ_amma_bday", elderId: elder.elderId, title: "Amma's birthday", kind: "birthday", date: mmdd(addDays(today, 19)), isElders: true, createdBy: "family:mem_ravi", createdAt });
+
+  // Her story book (Yaadein): chapters she told in past calls, one question from the family waiting.
+  const sty = (id: string, daysAgo: number, title: string, era: string, text: string, people: string[], place: string | undefined, prompt: string, askedBy?: string) =>
+    repo.putStory({ elderId: elder.elderId, familyId: DEMO.familyId, storyId: id, title, era, text, people, place, prompt, askedBy, createdAt: `${addDays(today, -daysAgo)}T03:36:00Z` });
+  await sty("sty_wedding", 24, "The wedding in Mysuru", "Young years", "We got married in the summer of 1968 in my father's courtyard in Mysuru. It rained the whole morning and everyone said it was a good sign. Your Appa arrived on a borrowed scooter because the car broke down near Chamundi hill, and he was so nervous he forgot the garland in the car. My mother laughed for a week about it. We had bisi bele bath for four hundred people, cooked by my aunts through the night.", ["Appa", "my mother"], "Mysuru", "Tell me about your wedding day.");
+  await sty("sty_cooking", 17, "Learning to cook from Ajji", "Childhood", "My grandmother taught me to make holige when I was nine. She never measured anything: a handful of this, a pinch of that. If the dough tore she would say the holige is angry with you, be gentle with it. I burnt the first four. The fifth one she ate in front of everyone and said it was the best she ever had. I still roll it the way she showed me, from the middle outwards.", ["Ajji"], "Mandya", "Who taught you to cook, and what was the first dish you made?");
+  await sty("sty_ravi_school", 10, "Ravi's first day of school", "Raising a family", "Ravi refused to let go of the school gate on his first day. He held it with both hands and cried so loudly the headmaster came out. I promised him a Mysore pak if he stayed till lunch. When I came at lunch he was sitting with three friends and didn't want to come home. He still owes me that Mysore pak, tell him that!", ["Ravi"], "Bengaluru", "What do you remember about your children's school days?", "Priya");
+  await sty("sty_advice", 4, "What I'd tell my grandchildren", "Wisdom", "Eat on time, call your mother, and never lend money you can't forget about. And keep one plant. When everything else is going wrong, a plant that needs water every morning reminds you that small things can still go right. That is why I keep my jasmine on the balcony.", ["Aarav"], undefined, "What advice would you give your grandchildren?");
+  await repo.putStoryAsk({ elderId: elder.elderId, askId: "ask_first_film", question: "Ajji, what was the first film you saw in a cinema hall?", fromName: "Aarav", status: "waiting", createdAt: `${addDays(today, -1)}T12:00:00Z` });
+
+  // Mind gym: playful games every third day for a month, steady around her usual.
+  const games: [number, "word_recall" | "category_naming", number, number, string?][] = [
+    [28, "word_recall", 3, 3], [25, "category_naming", 9, 15, "fruits"], [22, "word_recall", 2, 3], [19, "category_naming", 8, 15, "vegetables"],
+    [16, "word_recall", 3, 3], [13, "category_naming", 10, 15, "festivals"], [10, "word_recall", 3, 3], [7, "category_naming", 9, 15, "animals"],
+    [4, "word_recall", 2, 3], [1, "category_naming", 11, 15, "flowers"],
+  ];
+  for (const [ago, game, score, max, detail] of games) {
+    await repo.putGame({ elderId: elder.elderId, gameId: `gam_seed_${ago}`, date: addDays(today, -ago), game, score, max, detail, createdAt: `${addDays(today, -ago)}T03:37:00Z` });
+  }
 
   await repo.putMessage({ elderId: elder.elderId, messageId: "msg_ravi_sunday", direction: "to_elder", fromName: "Ravi", text: "I'll visit on Sunday", delivered: false, createdAt });
 

@@ -17,7 +17,7 @@ export type Severity = z.infer<typeof Severity>;
 
 export const AlertType = z.enum([
   "scam", "emergency", "no_answer", "missed_meds", "low_mood", "refill", "pause", "message", "health_change", "appointment",
-  "pension", "occasion", "vital", "need",
+  "pension", "occasion", "vital", "need", "story", "mind",
 ]);
 export type AlertType = z.infer<typeof AlertType>;
 
@@ -103,6 +103,49 @@ export interface Elder {
   vitalTargets?: Partial<VitalTargets>;
   /** LPG cylinder: last refill date and her usual interval, to ask before it runs out. */
   gas?: { lastRefill?: string; intervalDays?: number };
+  /** How KaiseHo sounds to her: "clear" = short and to the point, "warm" = chatty and affectionate. Her choice. */
+  voiceStyle?: VoiceStyle;
+  createdAt: string;
+}
+export type VoiceStyle = "clear" | "warm";
+
+/** Her life stories, told in calls and kept as a book for the family (with her consent). */
+export interface Story {
+  elderId: string;
+  familyId: string;
+  storyId: string;
+  title: string;
+  text: string;
+  era?: string;
+  people: string[];
+  place?: string;
+  /** The question that prompted it (from the bank or a family member). */
+  prompt?: string;
+  askedBy?: string;
+  callId?: string;
+  createdAt: string;
+}
+/** A question a family member wants KaiseHo to ask her ("How did you and Appa meet?"). */
+export interface StoryAsk {
+  elderId: string;
+  askId: string;
+  question: string;
+  fromName: string;
+  status: "waiting" | "asked" | "answered";
+  storyId?: string;
+  createdAt: string;
+}
+/** Mind gym: playful memory games in calls, compared only with her own usual. */
+export type GameKind = "word_recall" | "category_naming" | "story_recall";
+export interface GameResult {
+  elderId: string;
+  gameId: string;
+  date: string;
+  game: GameKind;
+  score: number;
+  max: number;
+  detail?: string;
+  callId?: string;
   createdAt: string;
 }
 
@@ -382,8 +425,11 @@ export interface Alert {
   data: Record<string, unknown>;
   status: "open" | "acked" | "resolved";
   ackedBy?: string;
+  ackedAt?: string;
   createdAt: string;
   notifiedVia: string[];
+  /** Telegram copies of this alert, so a tap by one sibling updates everyone's message. */
+  telegram?: { chatId: string; messageId: number; member: string }[];
 }
 
 export interface Message {
@@ -419,7 +465,8 @@ export type LiveEventType =
   | "tool.called" | "tool.rejected"
   | "alert.created" | "alert.notified" | "alert.acked"
   | "summary.ready" | "digest.ready" | "briefing.calling" | "demo.reset"
-  | "nudge.created" | "family_call.logged" | "schedule.updated" | "message.queued" | "appointment.updated" | "need.updated" | "vital.logged";
+  | "nudge.created" | "family_call.logged" | "schedule.updated" | "message.queued" | "appointment.updated" | "need.updated" | "vital.logged"
+  | "story.saved" | "game.logged";
 
 export interface LiveEvent {
   id: number;

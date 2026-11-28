@@ -6,7 +6,8 @@ import { z } from "zod";
 import { env } from "./env";
 import { elevenLabsReady } from "./engine/calls";
 import { llmEnabled } from "./engine/llm";
-import { setTelegramWebhook, telegramEnabled } from "./engine/notify/telegram";
+import { setTelegramCommands, setTelegramWebhook, telegramEnabled } from "./engine/notify/telegram";
+import { BOT_COMMANDS } from "./packs/kaiseho/telegramBot";
 import { handleElevenLabsWebhook } from "./engine/postcall";
 import { handleAgentMcp } from "./mcp/agentServer";
 import { handleFamilyMcp } from "./mcp/familyServer";
@@ -94,7 +95,7 @@ app.post("/internal/test/schedule-call", internalAuth, async (c) => {
 });
 app.post("/internal/demo/seed", internalAuth, async (c) => { await seedDemo({ resetEvents: true }); return c.json({ ok: true }); });
 app.post("/internal/telegram/set-webhook", internalAuth, async (c) =>
-  c.json({ ok: await setTelegramWebhook(`${env.PUBLIC_BASE_URL}/webhooks/telegram/${env.TELEGRAM_WEBHOOK_SECRET}`) }));
+  c.json({ ok: await setTelegramWebhook(`${env.PUBLIC_BASE_URL}/webhooks/telegram/${env.TELEGRAM_WEBHOOK_SECRET}`), commands: await setTelegramCommands(BOT_COMMANDS) }));
 
 // ---------- media (digest MP3s; family token via ?token= so <audio> can play it) ----------
 app.get("/media/digests/:file", familyAuth, async (c) => {

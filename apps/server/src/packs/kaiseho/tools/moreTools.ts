@@ -18,6 +18,8 @@ import { logLifeCert } from "../pension";
 import { relayWish } from "../occasions";
 import { logVital } from "../vitals";
 import { addNeeds } from "../needs";
+import { saveStory } from "../stories";
+import { logGame } from "../mindgym";
 import { ensureCall, type AgentTool } from "./agentTools";
 
 /** Phase 1 agent tools (plan.md Section 10.1). */
@@ -127,7 +129,7 @@ export const request_callback: AgentTool<typeof callbackShape> = {
 // ---------------- update_call_preferences (T2) ----------------
 const prefsShape = {
   elder_id,
-  action: z.enum(["skip_next", "pause_until", "change_time", "stop", "resume"]),
+  action: z.enum(["skip_next", "pause_until", "change_time", "stop", "resume", "style_clear", "style_warm"]).describe("style_clear: she wants shorter, to-the-point calls; style_warm: she enjoys long chatty calls"),
   until_date: z.string().optional().describe("YYYY-MM-DD for pause_until"),
   new_time_local: z.string().regex(/^\d{2}:\d{2}$/).optional().describe("HH:MM for change_time"),
   reason: z.string().max(200).optional(),
@@ -152,6 +154,8 @@ export const update_call_preferences: AgentTool<typeof prefsShape> = {
           elder.callTimeLocal = a.new_time_local; said = `From now on I'll call at ${a.new_time_local}.`; break;
         case "stop": elder.status = "stopped"; elder.pausedUntil = undefined; said = "I've stopped the daily calls. Your family will be told. Just say yes when you want them again."; break;
         case "resume": elder.status = "active"; elder.pausedUntil = undefined; said = "Daily calls are back on."; break;
+        case "style_clear": elder.voiceStyle = "clear"; said = "From now on I'll keep our calls short and to the point."; break;
+        case "style_warm": elder.voiceStyle = "warm"; said = "Lovely, we'll take our time and chat more."; break;
       }
       await repo.putElder(elder);
       emit("schedule.updated", elder.familyId, { status: elder.status, pausedUntil: elder.pausedUntil, callTimeLocal: elder.callTimeLocal, by: "elder" }, elder.elderId);
@@ -389,10 +393,50 @@ export const add_need: AgentTool<typeof needShape> = {
   },
 };
 
+// ---------------- save_life_story (T1): her story book ----------------
+const storyShape = {
+  elder_id, call_id,
+  title: z.string().min(3).max(80).describe("A short chapter title in English, e.g. 'The wedding in Mysuru'"),
+  story: z.string().min(40).max(2400).describe("Her story retold in English in her own voice (first person), keep her words and details"),
+  era: z.string().max(40).optional().describe("Childhood / Young years / Raising a family / Adventures / Recipes / Wisdom"),
+  people: z.array(z.string().max(40)).max(8).optional(),
+  place: z.string().max(60).optional(),
+  ask_id: z.string().optional().describe("From story_prompt when a family member asked the question"),
+  prompt_id: z.string().optional().describe("From story_prompt when it was a bank question"),
+  share_with_family: z.boolean().describe("Did she say yes to keeping it for the family? Ask first."),
+};
+export const save_life_story: AgentTool<typeof storyShape> = {
+  description: "She told a story from her life (childhood, wedding, raising children, a recipe, advice). Ask 'Shall I keep this story for the family?' and save it. If she says no, set share_with_family false and it stays private.",
+  shape: storyShape,
+  spec: {
+    name: "save_life_story", tier: "T1",
+    label: (a, r) => r.kept_private ? "📖 Story kept private (her choice)" : `📖 New chapter in her story book: "${a.title}"`,
+    run: async (a, { elder }) => { await ensureCall(elder.elderId, a.call_id); return saveStory(elder, a); },
+  },
+};
+
+// ---------------- log_brain_game (T1): mind gym ----------------
+const gameShape = {
+  elder_id, call_id,
+  game: z.enum(["word_recall", "category_naming", "story_recall"]),
+  score: z.number().int().min(0).max(15),
+  max: z.number().int().min(1).max(15),
+  detail: z.string().max(60).optional(),
+};
+export const log_brain_game: AgentTool<typeof gameShape> = {
+  description: "Log the result of today's playful memory game from brain_game (words remembered, or how many items she named). Never call it a test.",
+  shape: gameShape,
+  spec: {
+    name: "log_brain_game", tier: "T1",
+    label: (a) => `🧩 Mind game: ${a.game === "word_recall" ? "remembered" : "named"} ${a.score}/${a.max}${a.detail ? ` ${a.detail}` : ""}`,
+    run: async (a, { elder }) => { await ensureCall(elder.elderId, a.call_id); return logGame(elder, a); },
+  },
+};
+
 export const PHASE1_TOOLS = {
   get_today_context, recall_memory, mark_message_delivered, set_reminder, request_callback,
   update_call_preferences, record_consent, raise_emergency, log_scam_drill, request_appointment,
   get_shared_with_family, keep_private, log_life_certificate, relay_wish,
-  log_vital, add_need,
+  log_vital, add_need, save_life_story, log_brain_game,
 };
 

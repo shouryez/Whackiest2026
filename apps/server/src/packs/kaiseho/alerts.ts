@@ -3,7 +3,7 @@ import { redactDeep } from "../../control/redact";
 import { env } from "../../env";
 import { emit } from "../../engine/events";
 import { newId, nowIso } from "../../engine/ids";
-import { escapeHtml, sendTelegram } from "../../engine/notify/telegram";
+import { editTelegram, escapeHtml, sendTelegramMsg, type InlineButton } from "../../engine/notify/telegram";
 import { getRepo } from "../../repo";
 
 /**
@@ -12,7 +12,11 @@ import { getRepo } from "../../repo";
  *  urgent        → instant Telegram to primary (+ secondary for scams)
  *  emergency     → instant Telegram to everyone (+ briefing calls in Phase 3)
  */
-const SEVERITY_ICON: Record<Severity, string> = { info: "ℹ️", watch: "👀", urgent: "🚨", emergency: "🆘" };
+const SEVERITY_ICON: Record<Severity, string> = { info: "🔔", watch: "👀", urgent: "🚨", emergency: "🆘" };
+const TYPE_ICON: Partial<Record<AlertType, string>> = {
+  scam: "🛡️", no_answer: "📵", missed_meds: "💊", low_mood: "💛", refill: "💊", pause: "🗓️", message: "💌", health_change: "🩺",
+  appointment: "📅", pension: "🏦", occasion: "🎉", vital: "🩸", need: "🛒", story: "📖", mind: "🧩",
+};
 
 function recipients(members: Member[], severity: Severity, type: AlertType, to?: string[]): Member[] {
   if (severity === "emergency") return members;
@@ -21,7 +25,8 @@ function recipients(members: Member[], severity: Severity, type: AlertType, to?:
   // Practical news (bookings, pension, occasions) goes to the primary contact, whatever its severity.
   if (type === "appointment" || type === "pension" || type === "occasion") return members.filter((m) => m.role === "primary");
   // Household needs: every child, so whoever is free can claim it.
-  if (type === "need") return members.filter((m) => m.role === "primary" || m.role === "secondary");
+  if (type === "need" || type === "story") return members.filter((m) => m.role === "primary" || m.role === "secondary");
+  if (type === "mind") return members.filter((m) => m.role === "primary");
   if (type === "vital" && severity === "watch") return members.filter((m) => m.role === "primary");
   if (severity === "urgent") {
     return members.filter((m) => m.role === "primary" || (m.role === "secondary" && type === "scam"));
@@ -36,11 +41,42 @@ function chatIdFor(m: Member): string | undefined {
   return undefined;
 }
 
-function formatTelegram(a: Alert, elder: Elder, extraLines: string[]): string {
-  const head = `${SEVERITY_ICON[a.severity]} <b>${a.severity.toUpperCase()} · ${escapeHtml(a.title)}</b>`;
-  const lines = [head, escapeHtml(a.body), ...extraLines.map(escapeHtml)];
-  lines.push("", `<i>KaiseHo · ${escapeHtml(elder.preferredName)} · Elderline ${HELPLINES.elderline}</i>`);
+const hm = (tz: string, d = new Date()) => new Intl.DateTimeFormat("en-IN", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(d);
+
+/** Clean alert card: icon + title, who and when, the body, then the one thing to do. */
+export function formatTelegram(a: Alert, elder: Elder, extraLines: string[]): string {
+  const loud = a.severity === "urgent" || a.severity === "emergency";
+  const icon = loud ? SEVERITY_ICON[a.severity] : TYPE_ICON[a.type] ?? SEVERITY_ICON[a.severity];
+  const lines = [`${icon} <b>${loud ? `${a.severity.toUpperCase()} · ` : ""}${escapeHtml(a.title)}</b>`, `<i>${escapeHtml(elder.preferredName)} · ${hm(elder.tz, new Date(a.createdAt))}</i>`, "", escapeHtml(a.body)];
+  if (extraLines.length) lines.push("", ...extraLines.map(escapeHtml));
+  if (loud) lines.push("", `<i>Helplines: Elderline ${HELPLINES.elderline}${a.type === "scam" ? ` · Cyber fraud ${HELPLINES.cyberFraud}` : ""} · Emergency ${HELPLINES.emergency}</i>`);
   return lines.join("\n");
+}
+
+/** The buttons under an alert, by what the family can actually do about it. */
+export function alertButtons(a: Alert, elder: Elder): InlineButton[][] | undefined {
+  const n = elder.preferredName;
+  if (a.severity === "urgent" || a.severity === "emergency") {
+    return [[{ text: "🙋 I'm on it", callback_data: `ack:${a.alertId}` }, { text: `📞 Call ${n} now`, callback_data: `ca:${a.elderId}` }]];
+  }
+  switch (a.type) {
+    case "message": return [[{ text: `💬 Reply to ${n}`, callback_data: `rp:${a.elderId}` }, { text: "☎️ I called", callback_data: `called:${a.elderId}` }]];
+    case "need": return [[{ text: "🙋 I'll handle it", callback_data: `nh:${a.alertId}` }, { text: "🛒 See the list", callback_data: `nl:${a.elderId}` }]];
+    case "story": return [[{ text: "❤️ Loved it", callback_data: `lv:${a.alertId}` }, { text: "📖 Ask another", callback_data: `sq:${a.elderId}` }]];
+    case "low_mood": return [[{ text: "☎️ I'll call her", callback_data: `called:${a.elderId}` }, { text: "✓ Seen", callback_data: `ack:${a.alertId}` }]];
+    default: return [[{ text: "✓ Got it", callback_data: `ack:${a.alertId}` }]];
+  }
+}
+
+/** The rendered HTML of each Telegram copy, so a tap can edit every sibling's message. */
+export const alertHtml = new Map<string, string>();
+
+/** Updates every family member's copy of an alert (e.g. "✅ Ravi is on it"). */
+export async function refreshAlertCopies(a: Alert, elder: Elder, footer: string, buttons: InlineButton[][] = []): Promise<number> {
+  const html = alertHtml.get(a.alertId) ?? formatTelegram(a, elder, []);
+  let n = 0;
+  for (const copy of a.telegram ?? []) if (await editTelegram(copy.chatId, copy.messageId, `${html}\n\n${footer}`, buttons)) n++;
+  return n;
 }
 
 export async function createAlert(input: {
@@ -76,22 +112,27 @@ export async function createAlert(input: {
   const text = formatTelegram(alert, input.elder, input.telegramLines ?? []);
 
   // Fan out in parallel; never block the voice tool on Telegram.
+  alertHtml.set(alert.alertId, text);
+  if (alertHtml.size > 400) alertHtml.delete(alertHtml.keys().next().value!);
+  const buttons = alertButtons(alert, input.elder);
   void Promise.all(
     targets.map(async (m) => {
       const chatId = chatIdFor(m);
-      const buttons = alert.severity === "urgent" || alert.severity === "emergency"
-        ? [[{ text: "✓ Acknowledge", callback_data: `ack:${alert.alertId}` }, { text: `📞 Call ${input.elder.preferredName} now`, callback_data: `callnow:${alert.elderId}` }]]
-        : alert.type === "message" ? [[{ text: "☎️ I called her", callback_data: `called:${alert.elderId}` }]]
-        : alert.type === "need" ? [[{ text: "🙋 I'll handle it", callback_data: `needs:${alert.elderId}` }]] : undefined;
-      const ok = chatId ? await sendTelegram(chatId, text, buttons) : false;
+      const msgId = chatId ? await sendTelegramMsg(chatId, text, buttons) : null;
+      const ok = msgId !== null;
       const channel = `telegram:${m.name}`;
       if (ok) alert.notifiedVia.push(channel);
+      if (ok && chatId && msgId) (alert.telegram ??= []).push({ chatId, messageId: msgId, member: m.name });
       emit("alert.notified", alert.familyId, {
         alertId: alert.alertId, to: m.name, relation: m.relation, channel: "telegram",
         status: ok ? "delivered" : chatId ? "failed" : "not_linked",
       }, alert.elderId);
     }),
-  ).then(() => repo.putAlert(alert));
+  ).then(async () => {
+    // Merge (a sibling may have tapped a button already): keep their status, add the delivery record.
+    const cur = (await repo.getAlert(alert.alertId)) ?? alert;
+    await repo.putAlert({ ...cur, notifiedVia: alert.notifiedVia, telegram: alert.telegram });
+  });
 
   return alert;
 }
@@ -102,6 +143,7 @@ export async function ackAlert(alertId: string, by: string): Promise<Alert | und
   if (!a) return undefined;
   a.status = "acked";
   a.ackedBy = by;
+  a.ackedAt = nowIso();
   await repo.putAlert(a);
   emit("alert.acked", a.familyId, { alertId, by }, a.elderId);
   return a;

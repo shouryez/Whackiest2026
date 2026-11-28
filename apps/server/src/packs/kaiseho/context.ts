@@ -8,6 +8,8 @@ import { pensionNote } from "./pension";
 import { conversationPlan } from "./wellbeing";
 import { vitalsNote } from "./vitals";
 import { needsNote } from "./needs";
+import { storyPrompt } from "./stories";
+import { gameNote } from "./mindgym";
 
 /**
  * Context builder (plan.md Section 12.3): everything the agent needs, pushed as
@@ -79,6 +81,11 @@ export async function buildContext(
     needs_update: reason === "reminder" || reason === "quicktest" ? "none" : await needsNote(elder, today),
     pension_note: reason === "daily" || reason === "checkin" ? pensionNote(elder, primary?.name ?? "the family", today) : "none",
     occasions: reason === "reminder" || reason === "quicktest" ? "none" : await occasionsNote(elder, today),
+    story_prompt: reason === "daily" || reason === "checkin" ? await storyPrompt(elder, today) : "none",
+    brain_game: await gameNote(elder, reason, today),
+    voice_style: elder.voiceStyle === "clear"
+      ? "CLEAR: she prefers short, to-the-point calls. Friendly but efficient: little small talk, one topic at a time, aim for under 2 minutes. Skip the memory question unless she starts chatting."
+      : "WARM: she enjoys chatting. Take your time, small talk, react with feeling, follow her stories.",
     privacy_note: privateTopics.length ? `She asked to keep some ${[...new Set(privateTopics)].join("/")} topics private. Never bring them up or share them.` : "none",
   };
 }

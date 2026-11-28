@@ -36,6 +36,8 @@ import { addNeeds, claimNeed, completeNeed, gasStatus } from "../packs/kaiseho/n
 import { callRota } from "../packs/kaiseho/rota";
 import { cardUrl, ensureCardToken } from "../packs/kaiseho/card";
 import { llmTranscribe } from "../engine/llm";
+import { askStory, storyBook } from "../packs/kaiseho/stories";
+import { mindSummary } from "../packs/kaiseho/mindgym";
 import { putBlob } from "../engine/storage";
 
 /** Dashboard REST API (plan.md Section 12.1). Family-scoped; every output via filterForFamily. */
@@ -338,6 +340,23 @@ api.post("/elders/:id/needs/:nid/:action{claim|done}", async (c) => {
 
 // ---------- sibling call rota ----------
 api.get("/elders/:id/rota", async (c) => c.json(await callRota(await elderOr404(c.req.param("id")))));
+
+// ---------- her story book + mind gym + how KaiseHo sounds to her ----------
+api.get("/elders/:id/stories", async (c) => c.json(await storyBook(await elderOr404(c.req.param("id")))));
+api.post("/elders/:id/story-asks", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ question: z.string().min(8).max(200), fromName: z.string().min(1).max(40).default("Ravi") }).parse(await c.req.json());
+  return c.json({ ok: true, ask: await askStory(e, b.question, b.fromName) });
+});
+api.get("/elders/:id/mind", async (c) => c.json(await mindSummary(await elderOr404(c.req.param("id")))));
+api.patch("/elders/:id/voice-style", async (c) => {
+  const e = await elderOr404(c.req.param("id"));
+  const b = z.object({ voiceStyle: z.enum(["clear", "warm"]) }).parse(await c.req.json());
+  e.voiceStyle = b.voiceStyle;
+  await repo.putElder(e);
+  emit("schedule.updated", e.familyId, { voiceStyle: b.voiceStyle, by: "family", label: `🎙️ Call style: ${b.voiceStyle === "clear" ? "clear & short" : "warm & chatty"}` }, e.elderId);
+  return c.json({ ok: true, voiceStyle: e.voiceStyle });
+});
 
 // ---------- voice notes from grandchildren (Gemini transcribes; KaiseHo says it in the call) ----------
 api.post("/elders/:id/voice-note", async (c) => {

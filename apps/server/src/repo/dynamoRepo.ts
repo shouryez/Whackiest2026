@@ -4,7 +4,7 @@ import {
   type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 import type {
-  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Need, Nudge, Occasion, Reminder, Turn, Vital,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Need, Nudge, Occasion, Reminder, Turn, Vital, Story, StoryAsk, GameResult,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import type { Repo } from "./index";
@@ -112,6 +112,14 @@ export class DynamoRepo implements Repo {
   async listVitals(elderId: string, sinceDate?: string) {
     const out = await this.byPrefix<Vital>(`ELDER#${elderId}`, "VITAL#", sinceDate ? { from: sinceDate } : {});
     return out.sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
+  }
+  async putStory(x: Story) { await this.put({ pk: `ELDER#${x.elderId}`, sk: `STORY#${x.storyId}`, _t: "story" }, x); }
+  async listStories(elderId: string) { return (await this.byPrefix<Story>(`ELDER#${elderId}`, "STORY#")).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+  async putStoryAsk(x: StoryAsk) { await this.put({ pk: `ELDER#${x.elderId}`, sk: `STORYASK#${x.askId}`, _t: "storyask" }, x); }
+  async listStoryAsks(elderId: string) { return (await this.byPrefix<StoryAsk>(`ELDER#${elderId}`, "STORYASK#")).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
+  async putGame(g: GameResult) { await this.put({ pk: `ELDER#${g.elderId}`, sk: `GAME#${g.date}#${g.gameId}`, _t: "game" }, g); }
+  async listGames(elderId: string, sinceDate?: string) {
+    return (await this.byPrefix<GameResult>(`ELDER#${elderId}`, "GAME#")).filter((g) => !sinceDate || g.date >= sinceDate).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
   async putNeed(n: Need) { await this.put({ pk: `ELDER#${n.elderId}`, sk: `NEED#${n.needId}`, _t: "need" }, n); }
   async getNeed(elderId: string, needId: string) { return this.get<Need>(`ELDER#${elderId}`, `NEED#${needId}`); }

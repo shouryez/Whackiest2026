@@ -14,6 +14,7 @@ import { pr } from "./pronouns";
 import { flagChanges } from "./health";
 import { occasionFamilyNudges } from "./occasions";
 import { markNeedsTold } from "./needs";
+import { sendCallCard } from "./telegramBot";
 
 /**
  * KaiseHo's post-call brain (plan.md Section 8.6 steps 2–10).
@@ -119,6 +120,8 @@ async function onTranscript(p: PostCallPayload): Promise<void> {
   await repo.putCall(call);
   emit("call.ended", elder.familyId, { callId: call.callId, status: "completed", durationSec: call.durationSec }, elder.elderId);
   emit("summary.ready", elder.familyId, { callId: call.callId, summary: call.summary }, elder.elderId);
+  // The daily Telegram card (summary + reply / call / list buttons), after alerts from the same call.
+  setTimeout(() => void sendCallCard(elder, call).catch((err) => console.warn("[telegram] call card", (err as Error).message)), 1500);
 
   // 8. Family call mentioned by the elder ("Ravi called yesterday") counts toward the headline metric.
   const members = await repo.listMembers(elder.familyId);

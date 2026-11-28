@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Need, Nudge, Occasion, Vital, Reminder, Turn,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Need, Nudge, Occasion, Vital, Reminder, Turn, Story, StoryAsk, GameResult,
 } from "@kaiseho/shared";
 import { env } from "../env";
 import { DynamoRepo } from "./dynamoRepo";
@@ -68,6 +68,13 @@ export interface Repo {
   putOccasion(o: Occasion): Promise<void>;
   listOccasions(familyId: string): Promise<Occasion[]>;
   deleteOccasion(familyId: string, occasionId: string): Promise<void>;
+  // life stories + mind gym
+  putStory(s: Story): Promise<void>;
+  listStories(elderId: string): Promise<Story[]>;
+  putStoryAsk(a: StoryAsk): Promise<void>;
+  listStoryAsks(elderId: string): Promise<StoryAsk[]>;
+  putGame(g: GameResult): Promise<void>;
+  listGames(elderId: string, sinceDate?: string): Promise<GameResult[]>;
 
   // memories
   putMemory(m: Memory): Promise<void>;

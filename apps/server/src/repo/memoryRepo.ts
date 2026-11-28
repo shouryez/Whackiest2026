@@ -1,5 +1,5 @@
 import type {
-  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Need, Nudge, Occasion, Reminder, Turn, Vital,
+  Alert, Audit, Call, CheckIn, Appointment, Consent, Digest, Elder, Family, FamilyCall, Medication, MedLog, Member, Memory, Message, Need, Nudge, Occasion, Reminder, Turn, Vital, Story, StoryAsk, GameResult,
 } from "@kaiseho/shared";
 import type { Repo } from "./index";
 
@@ -26,6 +26,9 @@ export class MemoryRepo implements Repo {
   private occasions = new Map<string, Occasion>(); // familyId#occasionId
   private vitals = new Map<string, Vital>();
   private needs = new Map<string, Need>();
+  private stories = new Map<string, Story>();
+  private storyAsks = new Map<string, StoryAsk>();
+  private games = new Map<string, GameResult>();
 
   async putFamily(f: Family) { this.families.set(f.familyId, f); }
   async getFamily(id: string) { return this.families.get(id); }
@@ -80,6 +83,12 @@ export class MemoryRepo implements Repo {
   async listVitals(elderId: string, sinceDate?: string) {
     return [...this.vitals.values()].filter((v) => v.elderId === elderId && (!sinceDate || v.date >= sinceDate)).sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
   }
+  async putStory(x: Story) { this.stories.set(x.storyId, x); }
+  async listStories(elderId: string) { return [...this.stories.values()].filter((x) => x.elderId === elderId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+  async putStoryAsk(x: StoryAsk) { this.storyAsks.set(x.askId, x); }
+  async listStoryAsks(elderId: string) { return [...this.storyAsks.values()].filter((x) => x.elderId === elderId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
+  async putGame(g: GameResult) { this.games.set(g.gameId, g); }
+  async listGames(elderId: string, sinceDate?: string) { return [...this.games.values()].filter((g) => g.elderId === elderId && (!sinceDate || g.date >= sinceDate)).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
   async putNeed(n: Need) { this.needs.set(n.needId, n); }
   async getNeed(elderId: string, needId: string) { const n = this.needs.get(needId); return n?.elderId === elderId ? n : undefined; }
   async listNeeds(elderId: string) { return [...this.needs.values()].filter((n) => n.elderId === elderId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
@@ -131,6 +140,7 @@ export class MemoryRepo implements Repo {
     for (const [k, o] of this.occasions) if (o.familyId === familyId) this.occasions.delete(k);
     for (const [k, v] of this.vitals) if (elderIds.has(v.elderId)) this.vitals.delete(k);
     for (const [k, n] of this.needs) if (n.familyId === familyId) this.needs.delete(k);
+    dropByElder(this.stories); dropByElder(this.storyAsks); dropByElder(this.games);
     for (const [k, a] of this.alerts) if (a.familyId === familyId) this.alerts.delete(k);
     for (const [k, m] of this.members) if (m.familyId === familyId) this.members.delete(k);
     this.families.delete(familyId);
@@ -140,5 +150,6 @@ export class MemoryRepo implements Repo {
     for (const m of [this.families, this.members, this.elders, this.meds, this.medLogs, this.checkIns, this.calls, this.memories, this.alerts, this.messages]) m.clear();
     this.audit = [];
     this.turns.clear(); this.consents = []; this.reminders.clear(); this.familyCalls = []; this.nudges.clear(); this.digests = []; this.appointments.clear(); this.occasions.clear(); this.vitals.clear(); this.needs.clear();
+    this.stories.clear(); this.storyAsks.clear(); this.games.clear();
   }
 }
